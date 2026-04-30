@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Events — RHM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --green: #2db84b;
+      --black: #0a0a0a;
+      --white: #f2f2ee;
+      --muted: #888;
+      --surface: #111;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background-color: var(--black);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ───── PATTERN ───── */
+    #bg-pattern {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 0; opacity: 0.038;
+    }
+    nav, main, section, footer { position: relative; z-index: 1; }
+
+    /* ───── TOP NAV (ghost) ───── */
+    #topnav-ghost {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem 3rem;
+      pointer-events: none;
+    }
+    #topnav-ghost a { pointer-events: all; }
+    .tng-logo img { height: 44px; width: auto; display: block; }
+    .tng-links { display: flex; align-items: center; gap: 2rem; list-style: none; }
+    .tng-links a {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--white); text-decoration: none; transition: color 0.2s;
+    }
+    .tng-links a:hover { color: var(--green); }
+    .tng-links a.active { color: var(--green); }
+
+    /* ───── PAGE HERO ───── */
+    .page-hero {
+      padding: 10rem 3rem 6rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .page-eyebrow {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 1rem;
+    }
+    .page-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(4rem, 8vw, 8rem);
+      line-height: 0.9;
+      letter-spacing: 0.03em;
+      color: var(--white);
+    }
+
+    /* ───── REVEAL ───── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.65s ease, transform 0.65s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ───── SHARED BUTTONS ───── */
+    .btn-primary {
+      display: inline-block;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--black);
+      background: var(--green);
+      padding: 0.85rem 1.75rem;
+      text-decoration: none;
+      border-radius: 0;
+      border: 2px solid var(--green);
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover { background: transparent; color: var(--green); box-shadow: 0 0 28px rgba(45,184,75,0.35); }
+    .btn-outline {
+      display: inline-block;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--green);
+      border: 1.5px solid var(--green);
+      padding: 0.75rem 1.5rem;
+      text-decoration: none;
+      border-radius: 0;
+      transition: all 0.3s ease;
+    }
+    .btn-outline:hover { background: var(--green); color: var(--black); box-shadow: 0 0 28px rgba(45,184,75,0.4); }
+
+    /* ───── EVENTS CONTENT ───── */
+    .events-section {
+      padding: 5rem 3rem;
+    }
+
+    /* Main event card */
+    .event-card {
+      border-left: 4px solid var(--green);
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-left: 4px solid var(--green);
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      overflow: hidden;
+      transition: box-shadow 0.3s;
+    }
+    .event-card:hover {
+      box-shadow: 0 0 40px rgba(45,184,75,0.1);
+    }
+
+    /* Date block */
+    .event-date-block {
+      background: var(--green);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .event-day {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 5rem;
+      color: var(--black);
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+    .event-month {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--black);
+      margin-top: 0.2rem;
+    }
+
+    /* Event details */
+    .event-details {
+      padding: 2.5rem 3rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+    .event-meta {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .event-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .event-meta-item svg { width: 14px; height: 14px; color: var(--green); flex-shrink: 0; }
+    .event-badge {
+      display: inline-block;
+      background: rgba(45,184,75,0.12);
+      color: var(--green);
+      border: 1px solid rgba(45,184,75,0.3);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.6rem;
+      margin-bottom: 0.75rem;
+      border-radius: 0;
+    }
+    .event-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 3.5vw, 3.2rem);
+      line-height: 1.02;
+      color: var(--white);
+      letter-spacing: 0.03em;
+      margin-bottom: 0.5rem;
+    }
+    .event-description {
+      font-size: 0.95rem;
+      color: rgba(242,242,238,0.6);
+      line-height: 1.7;
+      font-weight: 300;
+      margin-bottom: 1rem;
+    }
+    .event-ctas {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* Coming soon section */
+    .coming-soon {
+      padding: 6rem 3rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      text-align: center;
+    }
+    .coming-soon-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 1rem;
+    }
+    .coming-soon-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.5rem, 4vw, 4rem);
+      color: var(--white);
+      letter-spacing: 0.03em;
+      margin-bottom: 1.5rem;
+      opacity: 0.4;
+    }
+    .coming-soon-sub {
+      font-size: 1rem;
+      color: var(--muted);
+      font-weight: 300;
+      max-width: 420px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.75;
+    }
+
+    /* Placeholder cards */
+    .future-events-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .future-card {
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-top: 2px solid rgba(45,184,75,0.15);
+      padding: 2rem 1.75rem;
+      text-align: left;
+    }
+    .future-card-sport {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      color: rgba(242,242,238,0.3);
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .future-card-label {
+      font-size: 0.75rem;
+      color: rgba(242,242,238,0.2);
+      font-weight: 300;
+    }
+
+    /* ───── FOOTER ───── */
+    footer {
+      padding: 4.5rem 3rem 2rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 5rem;
+      margin-bottom: 3.5rem;
+    }
+    .footer-brand img { height: 44px; width: auto; margin-bottom: 1rem; }
+    .footer-brand p { font-size: 0.85rem; color: var(--muted); line-height: 1.7; max-width: 280px; }
+    .footer-col h4 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.68rem; font-weight: 600;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 1.25rem;
+    }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+    .footer-col ul a { font-size: 0.88rem; color: rgba(242,242,238,0.5); text-decoration: none; transition: color 0.2s; }
+    .footer-col ul a:hover { color: var(--green); }
+    .social-row { display: flex; gap: 0.75rem; }
+    .social-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(242,242,238,0.5); text-decoration: none; transition: all 0.3s;
+    }
+    .social-btn:hover { border-color: var(--green); color: var(--green); }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 1.5rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .footer-bottom p { font-size: 0.78rem; color: rgba(242,242,238,0.25); }
+
+    /* ───── RESPONSIVE ───── */
+    @media (max-width: 900px) {
+      #topnav-ghost { padding: 1rem 1.5rem; }
+      .tng-links { display: none; }
+      .page-hero { padding: 8rem 1.5rem 4rem; }
+      .events-section { padding: 4rem 1.5rem; }
+      .event-card { grid-template-columns: 1fr; }
+      .event-date-block { flex-direction: row; gap: 1rem; padding: 1.5rem 2rem; justify-content: flex-start; }
+      .event-details { padding: 2rem 1.5rem; }
+      .coming-soon { padding: 4rem 1.5rem; }
+      .future-events-grid { grid-template-columns: 1fr; }
+      footer { padding: 4rem 1.5rem 2rem; }
+      .footer-grid { grid-template-columns: 1fr; gap: 3rem; }
+      .footer-bottom { flex-direction: column; gap: 0.75rem; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <svg id="bg-pattern" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="star8" x="0" y="0" width="90" height="90" patternUnits="userSpaceOnUse">
+        <polygon points="45,15 48.96,30.18 63.64,22.18 55.64,36.86 70.82,40.82 55.64,44.78 63.64,59.46 48.96,51.46 45,66.64 41.04,51.46 26.36,59.46 34.36,44.78 19.18,40.82 34.36,36.86 26.36,22.18 41.04,30.18"
+          fill="none" stroke="#2db84b" stroke-width="0.7"/>
+        <rect x="31" y="31" width="28" height="28" transform="rotate(45 45 45)" fill="none" stroke="#2db84b" stroke-width="0.4"/>
+        <rect x="35" y="35" width="20" height="20" fill="none" stroke="#2db84b" stroke-width="0.35"/>
+        <line x1="0" y1="0" x2="15" y2="15" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <line x1="90" y1="0" x2="75" y2="15" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <line x1="0" y1="90" x2="15" y2="75" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <line x1="90" y1="90" x2="75" y2="75" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <circle cx="45" cy="15" r="1.2" fill="#2db84b"/>
+        <circle cx="70.82" cy="40.82" r="1.2" fill="#2db84b"/>
+        <circle cx="45" cy="66.64" r="1.2" fill="#2db84b"/>
+        <circle cx="19.18" cy="40.82" r="1.2" fill="#2db84b"/>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#star8)"/>
+  </svg>
+
+  <!-- GHOST TOP NAV -->
+  <nav id="topnav-ghost">
+    <a href="index.html" class="tng-logo">
+      <img src="RHM-Logo.png" alt="RHM">
+    </a>
+    <ul class="tng-links">
+      <li><a href="events.html" class="active">Events</a></li>
+      <li><a href="sponsors.html">Sponsors</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+  </nav>
+
+  <!-- PAGE HERO -->
+  <div class="page-hero">
+    <p class="page-eyebrow">What's happening</p>
+    <h1 class="page-title">UPCOMING<br>EVENTS</h1>
+  </div>
+
+  <!-- EVENTS -->
+  <section class="events-section">
+
+    <div class="event-card reveal">
+      <div class="event-date-block">
+        <div>
+          <div class="event-day">30</div>
+          <div class="event-month">May</div>
+        </div>
+      </div>
+      <div class="event-details">
+        <div>
+          <div class="event-badge">Registration Open</div>
+          <h2 class="event-title">2ND ANNUAL MUSLIM FLAG FOOTBALL TOURNAMENT</h2>
+          <div class="event-meta">
+            <span class="event-meta-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M8 2a4 4 0 0 1 4 4c0 3-4 8-4 8S4 9 4 6a4 4 0 0 1 4-4z"/>
+                <circle cx="8" cy="6" r="1.5"/>
+              </svg>
+              East Windsor, CT
+            </span>
+            <span class="event-meta-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="8" cy="8" r="6"/>
+                <path d="M8 5v3l2 1.5"/>
+              </svg>
+              12:00 PM
+            </span>
+            <span class="event-meta-item">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="3" width="12" height="11" rx="1.5"/>
+                <path d="M2 7h12"/>
+                <path d="M5 1v3M11 1v3"/>
+              </svg>
+              May 30, 2025
+            </span>
+          </div>
+          <p class="event-description">
+            The second edition of RHM's flagship flag football tournament returns. Teams from across New England compete in a full day of fast-paced, non-contact football. All skill levels welcome — just bring your team, your energy, and your game face.
+          </p>
+        </div>
+        <div class="event-ctas">
+          <a href="#" class="btn-primary">Register Now →</a>
+          <a href="#" class="btn-outline">Learn More</a>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- COMING SOON -->
+  <div class="coming-soon reveal">
+    <p class="coming-soon-label">Stay tuned</p>
+    <h2 class="coming-soon-title">MORE EVENTS COMING SOON</h2>
+    <p class="coming-soon-sub">
+      RHM runs tournaments, leagues, pickup games, and community events year-round. Check back often or follow us on social media for announcements.
+    </p>
+
+    <div class="future-events-grid">
+      <div class="future-card">
+        <div class="future-card-sport">Basketball League</div>
+        <div class="future-card-label">Season · TBA</div>
+      </div>
+      <div class="future-card">
+        <div class="future-card-sport">3v3 Tournament</div>
+        <div class="future-card-label">Summer · TBA</div>
+      </div>
+      <div class="future-card">
+        <div class="future-card-sport">Soccer Cup</div>
+        <div class="future-card-label">Fall · TBA</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <img src="RHM-Logo.png" alt="RHM">
+        <p>Reuniting Hearts of Muslims — fostering unity, brotherhood, and sport across Western Massachusetts.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Navigate</h4>
+        <ul>
+          <li><a href="about.html">About RHM</a></li>
+          <li><a href="index.html#sports">Sports Programs</a></li>
+          <li><a href="index.html#community">Community</a></li>
+          <li><a href="events.html">Events</a></li>
+          <li><a href="sponsors.html">Sponsorship</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Follow Us</h4>
+        <div class="social-row">
+          <a href="#" class="social-btn" aria-label="Instagram">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="2" y="2" width="20" height="20" rx="5"/>
+              <circle cx="12" cy="12" r="5"/>
+              <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+            </svg>
+          </a>
+          <a href="#" class="social-btn" aria-label="X / Twitter">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 Reuniting Hearts of Muslims. All rights reserved.</p>
+      <p>Western Massachusetts</p>
+    </div>
+  </footer>
+
+  <script>
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+  </script>
+</body>
+</html>

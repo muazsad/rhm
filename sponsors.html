@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sponsors — RHM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --green: #2db84b;
+      --black: #0a0a0a;
+      --white: #f2f2ee;
+      --muted: #888;
+      --surface: #111;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background-color: var(--black);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ───── PATTERN ───── */
+    #bg-pattern {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 0; opacity: 0.038;
+    }
+    nav, section, footer { position: relative; z-index: 1; }
+
+    /* ───── TOP NAV (ghost) ───── */
+    #topnav-ghost {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem 3rem;
+      pointer-events: none;
+    }
+    #topnav-ghost a { pointer-events: all; }
+    .tng-logo img { height: 44px; width: auto; display: block; }
+    .tng-links { display: flex; align-items: center; gap: 2rem; list-style: none; }
+    .tng-links a {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--white); text-decoration: none; transition: color 0.2s;
+    }
+    .tng-links a:hover { color: var(--green); }
+    .tng-links a.active { color: var(--green); }
+
+    /* ───── PAGE HERO ───── */
+    .page-hero {
+      padding: 10rem 3rem 6rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .page-eyebrow {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.72rem; font-weight: 600;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 1rem;
+    }
+    .page-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(4rem, 8vw, 8rem);
+      line-height: 0.9; letter-spacing: 0.03em; color: var(--white);
+    }
+    .page-sub {
+      margin-top: 1.75rem;
+      font-size: 1.05rem; font-weight: 300;
+      color: rgba(242,242,238,0.6);
+      max-width: 540px; line-height: 1.75;
+    }
+
+    /* ───── REVEAL ───── */
+    .reveal {
+      opacity: 0; transform: translateY(30px);
+      transition: opacity 0.65s ease, transform 0.65s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ───── SECTION DIVIDER ───── */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(45,184,75,0.2), transparent);
+      margin: 0 3rem;
+    }
+
+    /* ───── LABELS & TITLES ───── */
+    .section-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.8rem, 5vw, 4.8rem);
+      line-height: 0.95; color: var(--white); letter-spacing: 0.03em;
+    }
+
+    /* ───── SPONSORS GRID ───── */
+    .sponsors-section { padding: 7rem 3rem; }
+    .sponsors-header { margin-bottom: 3.5rem; }
+    .sponsors-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+    .sponsor-card {
+      border: 1px solid rgba(255,255,255,0.07);
+      background: var(--surface);
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+    .sponsor-card:hover {
+      border-color: rgba(45,184,75,0.25);
+      box-shadow: 0 0 24px rgba(45,184,75,0.06);
+    }
+    .sponsor-placeholder {
+      width: 80px; height: 40px;
+      background: rgba(255,255,255,0.06);
+      border: 1px dashed rgba(255,255,255,0.1);
+      border-radius: 2px;
+    }
+    .sponsor-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.68rem; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: rgba(242,242,238,0.2);
+    }
+
+    /* ───── BECOME A SPONSOR ───── */
+    .become-sponsor {
+      background: var(--surface);
+      padding: 7rem 3rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .become-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6rem;
+      align-items: start;
+    }
+    .become-left {}
+    .become-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(3rem, 5vw, 5rem);
+      line-height: 0.92; color: var(--white); letter-spacing: 0.03em;
+      margin-bottom: 1.5rem;
+    }
+    .become-sub {
+      font-size: 1rem; font-weight: 300;
+      color: rgba(242,242,238,0.65); line-height: 1.8;
+      margin-bottom: 2.5rem;
+    }
+    .perks-list {
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .perk-item {
+      display: flex; align-items: flex-start; gap: 1rem;
+    }
+    .perk-dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 0.5rem;
+    }
+    .perk-text {
+      font-size: 0.92rem;
+      color: rgba(242,242,238,0.7);
+      line-height: 1.6;
+    }
+    .perk-text strong { color: var(--white); font-weight: 600; }
+
+    /* ───── FORM ───── */
+    .sponsor-form {
+      display: flex; flex-direction: column; gap: 1.25rem;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    .form-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.72rem; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: rgba(242,242,238,0.5);
+    }
+    .form-input, .form-textarea {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem; font-weight: 300;
+      padding: 0.85rem 1rem;
+      border-radius: 0;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    .form-input:focus, .form-textarea:focus { border-color: var(--green); }
+    .form-input::placeholder, .form-textarea::placeholder { color: rgba(242,242,238,0.25); }
+    .form-textarea { min-height: 130px; resize: vertical; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .btn-submit {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--black); background: var(--green);
+      padding: 1rem 2.25rem;
+      border: 2px solid var(--green);
+      border-radius: 0; cursor: pointer;
+      transition: all 0.3s ease;
+      align-self: flex-start;
+    }
+    .btn-submit:hover { background: transparent; color: var(--green); box-shadow: 0 0 28px rgba(45,184,75,0.35); }
+
+    /* ───── FOOTER ───── */
+    footer {
+      padding: 4.5rem 3rem 2rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 5rem; margin-bottom: 3.5rem; }
+    .footer-brand img { height: 44px; width: auto; margin-bottom: 1rem; }
+    .footer-brand p { font-size: 0.85rem; color: var(--muted); line-height: 1.7; max-width: 280px; }
+    .footer-col h4 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.68rem; font-weight: 600;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 1.25rem;
+    }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+    .footer-col ul a { font-size: 0.88rem; color: rgba(242,242,238,0.5); text-decoration: none; transition: color 0.2s; }
+    .footer-col ul a:hover { color: var(--green); }
+    .social-row { display: flex; gap: 0.75rem; }
+    .social-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(242,242,238,0.5); text-decoration: none; transition: all 0.3s;
+    }
+    .social-btn:hover { border-color: var(--green); color: var(--green); }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 1.5rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .footer-bottom p { font-size: 0.78rem; color: rgba(242,242,238,0.25); }
+
+    /* ───── RESPONSIVE ───── */
+    @media (max-width: 900px) {
+      #topnav-ghost { padding: 1rem 1.5rem; }
+      .tng-links { display: none; }
+      .page-hero { padding: 8rem 1.5rem 4rem; }
+      .sponsors-section { padding: 5rem 1.5rem; }
+      .sponsors-grid { grid-template-columns: 1fr 1fr; }
+      .become-sponsor { padding: 5rem 1.5rem; }
+      .become-inner { grid-template-columns: 1fr; gap: 3rem; }
+      .form-grid { grid-template-columns: 1fr; }
+      footer { padding: 4rem 1.5rem 2rem; }
+      .footer-grid { grid-template-columns: 1fr; gap: 3rem; }
+      .footer-bottom { flex-direction: column; gap: 0.75rem; text-align: center; }
+      .section-divider { margin: 0 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <svg id="bg-pattern" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="star8" x="0" y="0" width="90" height="90" patternUnits="userSpaceOnUse">
+        <polygon points="45,15 48.96,30.18 63.64,22.18 55.64,36.86 70.82,40.82 55.64,44.78 63.64,59.46 48.96,51.46 45,66.64 41.04,51.46 26.36,59.46 34.36,44.78 19.18,40.82 34.36,36.86 26.36,22.18 41.04,30.18"
+          fill="none" stroke="#2db84b" stroke-width="0.7"/>
+        <rect x="31" y="31" width="28" height="28" transform="rotate(45 45 45)" fill="none" stroke="#2db84b" stroke-width="0.4"/>
+        <rect x="35" y="35" width="20" height="20" fill="none" stroke="#2db84b" stroke-width="0.35"/>
+        <line x1="0" y1="0" x2="15" y2="15" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <line x1="90" y1="0" x2="75" y2="15" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <line x1="0" y1="90" x2="15" y2="75" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <line x1="90" y1="90" x2="75" y2="75" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <circle cx="45" cy="15" r="1.2" fill="#2db84b"/>
+        <circle cx="70.82" cy="40.82" r="1.2" fill="#2db84b"/>
+        <circle cx="45" cy="66.64" r="1.2" fill="#2db84b"/>
+        <circle cx="19.18" cy="40.82" r="1.2" fill="#2db84b"/>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#star8)"/>
+  </svg>
+
+  <!-- GHOST TOP NAV -->
+  <nav id="topnav-ghost">
+    <a href="index.html" class="tng-logo">
+      <img src="RHM-Logo.png" alt="RHM">
+    </a>
+    <ul class="tng-links">
+      <li><a href="events.html">Events</a></li>
+      <li><a href="sponsors.html" class="active">Sponsors</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+  </nav>
+
+  <!-- PAGE HERO -->
+  <div class="page-hero">
+    <p class="page-eyebrow">Partners & Supporters</p>
+    <h1 class="page-title">OUR<br>SPONSORS</h1>
+    <p class="page-sub">
+      RHM is powered by the generosity of community-minded organizations and individuals who believe in the power of Muslim athletics. Our sponsors make every tournament, every league, and every youth event possible.
+    </p>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- SPONSORS GRID -->
+  <section class="sponsors-section">
+    <div class="sponsors-header">
+      <p class="section-label reveal">Current Partners</p>
+      <h2 class="section-title reveal" style="transition-delay:0.1s">COMMUNITY<br>SUPPORTERS</h2>
+    </div>
+
+    <div class="sponsors-grid">
+      <div class="sponsor-card reveal">
+        <div class="sponsor-placeholder"></div>
+        <div class="sponsor-label">Sponsor Logo</div>
+      </div>
+      <div class="sponsor-card reveal" style="transition-delay:0.08s">
+        <div class="sponsor-placeholder"></div>
+        <div class="sponsor-label">Sponsor Logo</div>
+      </div>
+      <div class="sponsor-card reveal" style="transition-delay:0.16s">
+        <div class="sponsor-placeholder"></div>
+        <div class="sponsor-label">Sponsor Logo</div>
+      </div>
+      <div class="sponsor-card reveal" style="transition-delay:0.08s">
+        <div class="sponsor-placeholder"></div>
+        <div class="sponsor-label">Sponsor Logo</div>
+      </div>
+      <div class="sponsor-card reveal" style="transition-delay:0.16s">
+        <div class="sponsor-placeholder"></div>
+        <div class="sponsor-label">Sponsor Logo</div>
+      </div>
+      <div class="sponsor-card reveal" style="transition-delay:0.24s">
+        <div class="sponsor-placeholder"></div>
+        <div class="sponsor-label">Sponsor Logo</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- BECOME A SPONSOR -->
+  <section class="become-sponsor" id="become">
+    <div class="become-inner">
+      <div class="become-left reveal">
+        <p class="section-label">Partner With Us</p>
+        <h2 class="become-title">BECOME A SPONSOR</h2>
+        <p class="become-sub">
+          Partnering with RHM puts your brand at the center of New England's most active Muslim sports community. We offer meaningful visibility, genuine community connection, and the satisfaction of investing in something that matters.
+        </p>
+
+        <div class="perks-list">
+          <div class="perk-item">
+            <div class="perk-dot"></div>
+            <div class="perk-text"><strong>Logo placement</strong> on event banners, social media posts, and all tournament materials reaching hundreds of community members.</div>
+          </div>
+          <div class="perk-item">
+            <div class="perk-dot"></div>
+            <div class="perk-text"><strong>Event presence</strong> — table space at RHM tournaments and events, directly engaging with our growing community.</div>
+          </div>
+          <div class="perk-item">
+            <div class="perk-dot"></div>
+            <div class="perk-text"><strong>Community reach</strong> — authentic connection with a tight-knit, engaged Muslim audience across Western Massachusetts and beyond.</div>
+          </div>
+          <div class="perk-item">
+            <div class="perk-dot"></div>
+            <div class="perk-text"><strong>Website recognition</strong> — permanent logo placement on rhmorg.com with a link to your organization.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal" style="transition-delay:0.15s">
+        <form class="sponsor-form" onsubmit="handleSubmit(event)">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label" for="name">Your Name</label>
+              <input class="form-input" type="text" id="name" name="name" placeholder="Full name" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="org">Organization</label>
+              <input class="form-input" type="text" id="org" name="org" placeholder="Company or org name" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="email">Email Address</label>
+            <input class="form-input" type="email" id="email" name="email" placeholder="you@example.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="message">Message</label>
+            <textarea class="form-textarea" id="message" name="message" placeholder="Tell us about your organization and how you'd like to get involved..."></textarea>
+          </div>
+          <button type="submit" class="btn-submit">Send Application →</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <img src="RHM-Logo.png" alt="RHM">
+        <p>Reuniting Hearts of Muslims — fostering unity, brotherhood, and sport across Western Massachusetts.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Navigate</h4>
+        <ul>
+          <li><a href="about.html">About RHM</a></li>
+          <li><a href="index.html#sports">Sports Programs</a></li>
+          <li><a href="index.html#community">Community</a></li>
+          <li><a href="events.html">Events</a></li>
+          <li><a href="sponsors.html">Sponsorship</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Follow Us</h4>
+        <div class="social-row">
+          <a href="#" class="social-btn" aria-label="Instagram">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="2" y="2" width="20" height="20" rx="5"/>
+              <circle cx="12" cy="12" r="5"/>
+              <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+            </svg>
+          </a>
+          <a href="#" class="social-btn" aria-label="X / Twitter">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 Reuniting Hearts of Muslims. All rights reserved.</p>
+      <p>Western Massachusetts</p>
+    </div>
+  </footer>
+
+  <script>
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+    function handleSubmit(e) {
+      e.preventDefault();
+      const btn = e.target.querySelector('.btn-submit');
+      btn.textContent = 'Sent! We\'ll be in touch.';
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--green)';
+      btn.disabled = true;
+    }
+  </script>
+</body>
+</html>

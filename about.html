@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About — RHM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --green: #2db84b;
+      --black: #0a0a0a;
+      --white: #f2f2ee;
+      --muted: #888;
+      --surface: #111;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background-color: var(--black);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ───── PATTERN ───── */
+    #bg-pattern {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 0; opacity: 0.038;
+    }
+    nav, section, footer { position: relative; z-index: 1; }
+
+    /* ───── TOP NAV (ghost) ───── */
+    #topnav-ghost {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem 3rem;
+      pointer-events: none;
+    }
+    #topnav-ghost a { pointer-events: all; }
+    .tng-logo img { height: 44px; width: auto; display: block; }
+    .tng-links { display: flex; align-items: center; gap: 2rem; list-style: none; }
+    .tng-links a {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--white); text-decoration: none; transition: color 0.2s;
+    }
+    .tng-links a:hover { color: var(--green); }
+    .tng-links a.active { color: var(--green); }
+
+    /* ───── PAGE HERO ───── */
+    .page-hero {
+      padding: 10rem 3rem 6rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .page-eyebrow {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.72rem; font-weight: 600;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 1rem;
+    }
+    .page-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(3rem, 7vw, 7rem);
+      line-height: 0.9; letter-spacing: 0.03em; color: var(--white);
+    }
+    .page-sub {
+      margin-top: 2rem;
+      font-size: 1.1rem; font-weight: 300;
+      color: rgba(242,242,238,0.6);
+      max-width: 560px; line-height: 1.75;
+    }
+
+    /* ───── REVEAL ───── */
+    .reveal {
+      opacity: 0; transform: translateY(30px);
+      transition: opacity 0.65s ease, transform 0.65s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ───── SECTION DIVIDER ───── */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(45,184,75,0.2), transparent);
+      margin: 0 3rem;
+    }
+
+    /* ───── LABELS & TITLES ───── */
+    .section-label {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.8rem, 5vw, 4.8rem);
+      line-height: 0.95; color: var(--white); letter-spacing: 0.03em;
+    }
+
+    /* ───── MISSION ───── */
+    .mission-section {
+      padding: 8rem 3rem;
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 7rem;
+      align-items: start;
+    }
+    .mission-quote {
+      border-left: 4px solid var(--green);
+      padding-left: 2.5rem;
+      position: sticky;
+      top: 100px;
+    }
+    .mission-quote p {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 3.2vw, 3.2rem);
+      line-height: 1.12; color: var(--white); letter-spacing: 0.03em;
+    }
+    .mission-body {
+      font-size: 1rem; font-weight: 300;
+      color: rgba(242,242,238,0.68); line-height: 1.9;
+    }
+    .mission-body strong { color: var(--green); font-weight: 600; }
+    .mission-body p + p { margin-top: 1.5rem; }
+
+    /* ───── STORY / ANNIVERSARY ───── */
+    .story-section {
+      padding: 8rem 3rem;
+      background: var(--surface);
+    }
+    .story-inner {
+      max-width: 820px;
+    }
+    .story-badge {
+      display: inline-block;
+      background: var(--green);
+      color: var(--black);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.7rem; font-weight: 700;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      padding: 0.3rem 0.7rem; margin-bottom: 1.5rem;
+    }
+    .story-headline {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.5rem, 4.5vw, 5rem);
+      line-height: 1.0; color: var(--white); letter-spacing: 0.03em;
+      margin-bottom: 2rem;
+    }
+    .story-text {
+      font-size: 1rem; font-weight: 300;
+      color: rgba(242,242,238,0.68); line-height: 1.9;
+    }
+    .story-text p + p { margin-top: 1.5rem; }
+
+    /* ───── FOUNDERS ───── */
+    .founders-section {
+      padding: 8rem 3rem;
+    }
+    .founders-header { margin-bottom: 3.5rem; }
+    .founders-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+    .founder-card {
+      border: 1px solid rgba(255,255,255,0.06);
+      background: var(--surface);
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .founder-card:hover { border-color: rgba(45,184,75,0.3); }
+    .founder-avatar {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .founder-avatar svg { width: 64px; height: 64px; color: rgba(242,242,238,0.12); }
+    .founder-info { padding: 1.75rem; }
+    .founder-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.6rem; letter-spacing: 0.05em; color: var(--white);
+      margin-bottom: 0.3rem;
+    }
+    .founder-role {
+      font-size: 0.78rem; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--green);
+    }
+
+    /* ───── VALUES ───── */
+    .values-section {
+      padding: 8rem 3rem;
+      background: var(--surface);
+    }
+    .values-header { margin-bottom: 3.5rem; }
+    .values-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+    .value-card {
+      border-top: 3px solid var(--green);
+      padding: 2.5rem 2rem;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-top: 3px solid var(--green);
+      transition: box-shadow 0.3s;
+    }
+    .value-card:hover { box-shadow: 0 0 30px rgba(45,184,75,0.08); }
+    .value-number {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 3.5rem; color: rgba(45,184,75,0.15);
+      line-height: 1; letter-spacing: 0.03em; margin-bottom: 0.75rem;
+    }
+    .value-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem; letter-spacing: 0.05em; color: var(--white);
+      margin-bottom: 0.75rem;
+    }
+    .value-desc {
+      font-size: 0.88rem; color: var(--muted); line-height: 1.7; font-weight: 300;
+    }
+
+    /* ───── FOOTER ───── */
+    footer {
+      padding: 4.5rem 3rem 2rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 5rem; margin-bottom: 3.5rem; }
+    .footer-brand img { height: 44px; width: auto; margin-bottom: 1rem; }
+    .footer-brand p { font-size: 0.85rem; color: var(--muted); line-height: 1.7; max-width: 280px; }
+    .footer-col h4 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.68rem; font-weight: 600;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 1.25rem;
+    }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+    .footer-col ul a { font-size: 0.88rem; color: rgba(242,242,238,0.5); text-decoration: none; transition: color 0.2s; }
+    .footer-col ul a:hover { color: var(--green); }
+    .social-row { display: flex; gap: 0.75rem; }
+    .social-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(242,242,238,0.5); text-decoration: none; transition: all 0.3s;
+    }
+    .social-btn:hover { border-color: var(--green); color: var(--green); }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 1.5rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .footer-bottom p { font-size: 0.78rem; color: rgba(242,242,238,0.25); }
+
+    /* ───── RESPONSIVE ───── */
+    @media (max-width: 900px) {
+      #topnav-ghost { padding: 1rem 1.5rem; }
+      .tng-links { display: none; }
+      .page-hero { padding: 8rem 1.5rem 4rem; }
+      .mission-section { grid-template-columns: 1fr; gap: 3rem; padding: 5rem 1.5rem; }
+      .mission-quote { position: static; }
+      .story-section { padding: 5rem 1.5rem; }
+      .founders-section { padding: 5rem 1.5rem; }
+      .founders-grid { grid-template-columns: 1fr; }
+      .values-section { padding: 5rem 1.5rem; }
+      .values-grid { grid-template-columns: 1fr; }
+      footer { padding: 4rem 1.5rem 2rem; }
+      .footer-grid { grid-template-columns: 1fr; gap: 3rem; }
+      .footer-bottom { flex-direction: column; gap: 0.75rem; text-align: center; }
+      .section-divider { margin: 0 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <svg id="bg-pattern" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="star8" x="0" y="0" width="90" height="90" patternUnits="userSpaceOnUse">
+        <polygon points="45,15 48.96,30.18 63.64,22.18 55.64,36.86 70.82,40.82 55.64,44.78 63.64,59.46 48.96,51.46 45,66.64 41.04,51.46 26.36,59.46 34.36,44.78 19.18,40.82 34.36,36.86 26.36,22.18 41.04,30.18"
+          fill="none" stroke="#2db84b" stroke-width="0.7"/>
+        <rect x="31" y="31" width="28" height="28" transform="rotate(45 45 45)" fill="none" stroke="#2db84b" stroke-width="0.4"/>
+        <rect x="35" y="35" width="20" height="20" fill="none" stroke="#2db84b" stroke-width="0.35"/>
+        <line x1="0" y1="0" x2="15" y2="15" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <line x1="90" y1="0" x2="75" y2="15" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <line x1="0" y1="90" x2="15" y2="75" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <line x1="90" y1="90" x2="75" y2="75" stroke="#2db84b" stroke-width="0.3" stroke-opacity="0.6"/>
+        <circle cx="45" cy="15" r="1.2" fill="#2db84b"/>
+        <circle cx="70.82" cy="40.82" r="1.2" fill="#2db84b"/>
+        <circle cx="45" cy="66.64" r="1.2" fill="#2db84b"/>
+        <circle cx="19.18" cy="40.82" r="1.2" fill="#2db84b"/>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#star8)"/>
+  </svg>
+
+  <!-- GHOST TOP NAV -->
+  <nav id="topnav-ghost">
+    <a href="index.html" class="tng-logo">
+      <img src="RHM-Logo.png" alt="RHM">
+    </a>
+    <ul class="tng-links">
+      <li><a href="events.html">Events</a></li>
+      <li><a href="sponsors.html">Sponsors</a></li>
+      <li><a href="about.html" class="active">About</a></li>
+    </ul>
+  </nav>
+
+  <!-- PAGE HERO -->
+  <div class="page-hero">
+    <p class="page-eyebrow">Who We Are</p>
+    <h1 class="page-title">REUNITING<br>HEARTS OF<br>MUSLIMS</h1>
+    <p class="page-sub">
+      A Muslim sports organization built on faith, forged through competition, and growing across Western Massachusetts.
+    </p>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- MISSION -->
+  <section class="mission-section">
+    <div class="mission-quote reveal">
+      <p class="section-label">Our Mission</p>
+      <br>
+      <p>TO FOSTER UNITY AND STRENGTHEN THE BONDS OF THE UMMAH THROUGH SPORT AND COMMUNITY.</p>
+    </div>
+    <div class="mission-body reveal" style="transition-delay:0.18s">
+      <p>RHM began as an inspired vision shared by three devoted individuals who saw a gap in our community — a place where Muslim athletes could compete, connect, and grow in faith together.</p>
+      <p>From those early conversations, <strong>Reuniting Hearts of Muslims</strong> emerged as a force for connection across Western Massachusetts. We organize leagues, tournaments, pickup games, and community events that bring the ummah together in a spirit of brotherhood and healthy competition.</p>
+      <p>Our mission is not simply to run sports leagues. It is to create a space where Muslim identity and athletic ambition are not in conflict — where you can show up fully as both a believer and a competitor, and where every game is also an act of community building.</p>
+      <p>We believe the deen calls us to strengthen our bonds, and we believe sport is one of the most powerful tools for doing exactly that.</p>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- STORY -->
+  <section class="story-section">
+    <div class="story-inner">
+      <span class="story-badge reveal">New England's Largest</span>
+      <h2 class="story-headline reveal" style="transition-delay:0.1s">THE TOURNAMENT THAT STARTED A MOVEMENT.</h2>
+      <div class="story-text reveal" style="transition-delay:0.2s">
+        <p>What started as a humble gathering of brothers with a shared love of the game has grown into something historic. RHM now hosts New England's largest Muslim basketball tournament — an event that draws teams from across the region, uniting athletes in faith and competition under one roof.</p>
+        <p>Every year the tournament grows. Every year new friendships are forged, new memories made, and the ummah of Western Massachusetts grows stronger. This is not just a tournament — it is a statement that our community thrives, competes, and belongs.</p>
+        <p>The anniversary of RHM's first tournament marks more than a milestone on a calendar. It marks the moment our community decided to show up for itself — and has never stopped since.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- FOUNDERS -->
+  <section class="founders-section">
+    <div class="founders-header">
+      <p class="section-label reveal">The People Behind RHM</p>
+      <h2 class="section-title reveal" style="transition-delay:0.1s">OUR FOUNDERS</h2>
+    </div>
+    <div class="founders-grid">
+      <div class="founder-card reveal">
+        <div class="founder-avatar">
+          <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="32" cy="24" r="12"/>
+            <path d="M8 56 Q8 40 32 40 Q56 40 56 56"/>
+          </svg>
+        </div>
+        <div class="founder-info">
+          <div class="founder-name">Founder 1</div>
+          <div class="founder-role">Co-Founder</div>
+        </div>
+      </div>
+      <div class="founder-card reveal" style="transition-delay:0.12s">
+        <div class="founder-avatar">
+          <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="32" cy="24" r="12"/>
+            <path d="M8 56 Q8 40 32 40 Q56 40 56 56"/>
+          </svg>
+        </div>
+        <div class="founder-info">
+          <div class="founder-name">Founder 2</div>
+          <div class="founder-role">Co-Founder</div>
+        </div>
+      </div>
+      <div class="founder-card reveal" style="transition-delay:0.24s">
+        <div class="founder-avatar">
+          <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="32" cy="24" r="12"/>
+            <path d="M8 56 Q8 40 32 40 Q56 40 56 56"/>
+          </svg>
+        </div>
+        <div class="founder-info">
+          <div class="founder-name">Founder 3</div>
+          <div class="founder-role">Co-Founder</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- VALUES -->
+  <section class="values-section">
+    <div class="values-header">
+      <p class="section-label reveal">What We Stand For</p>
+      <h2 class="section-title reveal" style="transition-delay:0.1s">OUR VALUES</h2>
+    </div>
+    <div class="values-grid">
+      <div class="value-card reveal">
+        <div class="value-number">01</div>
+        <div class="value-name">Faith</div>
+        <div class="value-desc">Everything we do is grounded in our deen. Faith is not a backdrop to our work — it is the foundation. We play, we organize, and we build community as Muslims first.</div>
+      </div>
+      <div class="value-card reveal" style="transition-delay:0.12s">
+        <div class="value-number">02</div>
+        <div class="value-name">Unity</div>
+        <div class="value-desc">The ummah is one. Regardless of background, age, or skill level, every Muslim is welcome at RHM. Sport is a language that transcends all differences and builds lasting bonds.</div>
+      </div>
+      <div class="value-card reveal" style="transition-delay:0.24s">
+        <div class="value-number">03</div>
+        <div class="value-name">Community</div>
+        <div class="value-desc">We are not just an organization — we are a community. We show up for each other on the court and off it. Every event is an opportunity to make the ummah stronger.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <img src="RHM-Logo.png" alt="RHM">
+        <p>Reuniting Hearts of Muslims — fostering unity, brotherhood, and sport across Western Massachusetts.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Navigate</h4>
+        <ul>
+          <li><a href="about.html">About RHM</a></li>
+          <li><a href="index.html#sports">Sports Programs</a></li>
+          <li><a href="index.html#community">Community</a></li>
+          <li><a href="events.html">Events</a></li>
+          <li><a href="sponsors.html">Sponsorship</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Follow Us</h4>
+        <div class="social-row">
+          <a href="#" class="social-btn" aria-label="Instagram">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="2" y="2" width="20" height="20" rx="5"/>
+              <circle cx="12" cy="12" r="5"/>
+              <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+            </svg>
+          </a>
+          <a href="#" class="social-btn" aria-label="X / Twitter">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 Reuniting Hearts of Muslims. All rights reserved.</p>
+      <p>Western Massachusetts</p>
+    </div>
+  </footer>
+
+  <script>
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+  </script>
+</body>
+</html>
