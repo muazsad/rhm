@@ -1,20 +1,4 @@
 (function (window) {
-  var isNodeVmSandbox = !window.document && window.constructor && window.constructor.name === 'Object';
-  var HostArray = isNodeVmSandbox ? window.constructor.constructor('return Array')() : Array;
-  var HostObject = isNodeVmSandbox ? window.constructor.constructor('return Object')() : Object;
-
-  function makeArray() {
-    return new HostArray();
-  }
-
-  function makeGroup(index, teams, name) {
-    var group = new HostObject();
-    group.id = groupId(index);
-    group.name = name || 'Group ' + groupLetter(index);
-    group.teams = teams || makeArray();
-    return group;
-  }
-
   function groupLetter(index) {
     return String.fromCharCode(65 + index);
   }
@@ -24,7 +8,7 @@
   }
 
   function parseTeamList(value) {
-    var result = makeArray();
+    var result = [];
     var values;
 
     if (Array.isArray(value)) {
@@ -42,7 +26,7 @@
   }
 
   function normalizeManualGroups(groups) {
-    var normalized = makeArray();
+    var normalized = [];
 
     (groups || []).forEach(function (group) {
       var teams = parseTeamList(group && group.teams ? group.teams : []);
@@ -50,18 +34,26 @@
 
       var index = normalized.length;
       var name = String(group && group.name ? group.name : '').trim() || 'Group ' + groupLetter(index);
-      normalized.push(makeGroup(index, teams, name));
+      normalized.push({
+        id: groupId(index),
+        name: name,
+        teams: teams
+      });
     });
 
     return normalized;
   }
 
   function createEmptyGroups(numGroups) {
-    var groups = makeArray();
+    var groups = [];
     var count = Math.max(1, parseInt(numGroups, 10) || 1);
 
     for (var i = 0; i < count; i++) {
-      groups.push(makeGroup(i));
+      groups.push({
+        id: groupId(i),
+        name: 'Group ' + groupLetter(i),
+        teams: []
+      });
     }
 
     return groups;
@@ -69,17 +61,14 @@
 
   function shuffleTeams(teams, random) {
     var randomFn = typeof random === 'function' ? random : Math.random;
-    var shuffled = makeArray();
 
-    teams.forEach(function (team, index) {
-      var item = new HostObject();
-      item.index = index;
-      item.key = randomFn();
-      item.team = team;
-      shuffled.push(item);
-    });
-
-    return shuffled.sort(function (a, b) {
+    return teams.map(function (team, index) {
+      return {
+        index: index,
+        key: randomFn(),
+        team: team
+      };
+    }).sort(function (a, b) {
       if (a.key === b.key) return b.index - a.index;
       return b.key - a.key;
     }).map(function (item) {
@@ -119,7 +108,7 @@
   function defaultVenueNames(sport, count) {
     var total = Math.max(0, parseInt(count, 10) || 0);
     var label = String(sport || '').toLowerCase() === 'basketball' ? 'Court' : 'Field';
-    var names = makeArray();
+    var names = [];
 
     for (var i = 1; i <= total; i++) {
       names.push(label + ' ' + i);

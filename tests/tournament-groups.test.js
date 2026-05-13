@@ -18,12 +18,16 @@ function makeSandbox() {
   return sandbox;
 }
 
+function plain(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 test('parseTeamList trims blank lines and removes empty teams', () => {
   const sandbox = makeSandbox();
   loadBrowserScript('assets/js/tournament-groups.js', sandbox);
 
   assert.deepEqual(
-    sandbox.window.RHMTournamentGroups.parseTeamList('Aqsa\n\n EH Warriors \nStrap Kings'),
+    plain(sandbox.window.RHMTournamentGroups.parseTeamList('Aqsa\n\n EH Warriors \nStrap Kings')),
     ['Aqsa', 'EH Warriors', 'Strap Kings']
   );
 });
@@ -33,7 +37,7 @@ test('parseTeamList parses comma-separated teams', () => {
   loadBrowserScript('assets/js/tournament-groups.js', sandbox);
 
   assert.deepEqual(
-    sandbox.window.RHMTournamentGroups.parseTeamList('Aqsa, EH Warriors, , Strap Kings'),
+    plain(sandbox.window.RHMTournamentGroups.parseTeamList('Aqsa, EH Warriors, , Strap Kings')),
     ['Aqsa', 'EH Warriors', 'Strap Kings']
   );
 });
@@ -48,7 +52,7 @@ test('seeded snake grouping balances strong seeds across groups', () => {
     method: 'seeded'
   });
 
-  assert.deepEqual(groups.map(group => group.teams), [
+  assert.deepEqual(plain(groups.map(group => group.teams)), [
     ['Seed 1', 'Seed 6'],
     ['Seed 2', 'Seed 5'],
     ['Seed 3', 'Seed 4']
@@ -66,7 +70,7 @@ test('random grouping is deterministic when a random function is provided', () =
     random: () => 0.9
   });
 
-  assert.deepEqual(groups.map(group => group.teams), [
+  assert.deepEqual(plain(groups.map(group => group.teams)), [
     ['D', 'B'],
     ['C', 'A']
   ]);
@@ -81,7 +85,7 @@ test('normalizeManualGroups keeps manually created groups and removes blanks', (
     { name: '', teams: ['C'] }
   ]);
 
-  assert.deepEqual(groups, [
+  assert.deepEqual(plain(groups), [
     { id: 'group-a', name: 'Pool A', teams: ['A', 'B'] },
     { id: 'group-b', name: 'Group B', teams: ['C'] }
   ]);
@@ -97,7 +101,7 @@ test('normalizeManualGroups drops groups with no teams', () => {
     { name: 'Also Empty', teams: [] }
   ]);
 
-  assert.deepEqual(groups, [
+  assert.deepEqual(plain(groups), [
     { id: 'group-a', name: 'Pool B', teams: ['C'] }
   ]);
 });
@@ -106,16 +110,16 @@ test('defaultVenueNames uses courts for basketball and fields for football or so
   const sandbox = makeSandbox();
   loadBrowserScript('assets/js/tournament-groups.js', sandbox);
 
-  assert.deepEqual(sandbox.window.RHMTournamentGroups.defaultVenueNames('Basketball', 2), ['Court 1', 'Court 2']);
-  assert.deepEqual(sandbox.window.RHMTournamentGroups.defaultVenueNames('Flag Football', 2), ['Field 1', 'Field 2']);
-  assert.deepEqual(sandbox.window.RHMTournamentGroups.defaultVenueNames('Soccer', 1), ['Field 1']);
+  assert.deepEqual(plain(sandbox.window.RHMTournamentGroups.defaultVenueNames('Basketball', 2)), ['Court 1', 'Court 2']);
+  assert.deepEqual(plain(sandbox.window.RHMTournamentGroups.defaultVenueNames('Flag Football', 2)), ['Field 1', 'Field 2']);
+  assert.deepEqual(plain(sandbox.window.RHMTournamentGroups.defaultVenueNames('Soccer', 1)), ['Field 1']);
 });
 
 test('defaultVenueNames falls back to fields for other sports', () => {
   const sandbox = makeSandbox();
   loadBrowserScript('assets/js/tournament-groups.js', sandbox);
 
-  assert.deepEqual(sandbox.window.RHMTournamentGroups.defaultVenueNames('Volleyball', 3), [
+  assert.deepEqual(plain(sandbox.window.RHMTournamentGroups.defaultVenueNames('Volleyball', 3)), [
     'Field 1',
     'Field 2',
     'Field 3'
