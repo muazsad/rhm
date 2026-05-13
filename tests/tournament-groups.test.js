@@ -28,6 +28,16 @@ test('parseTeamList trims blank lines and removes empty teams', () => {
   );
 });
 
+test('parseTeamList parses comma-separated teams', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-groups.js', sandbox);
+
+  assert.deepEqual(
+    sandbox.window.RHMTournamentGroups.parseTeamList('Aqsa, EH Warriors, , Strap Kings'),
+    ['Aqsa', 'EH Warriors', 'Strap Kings']
+  );
+});
+
 test('seeded snake grouping balances strong seeds across groups', () => {
   const sandbox = makeSandbox();
   loadBrowserScript('assets/js/tournament-groups.js', sandbox);
@@ -77,6 +87,21 @@ test('normalizeManualGroups keeps manually created groups and removes blanks', (
   ]);
 });
 
+test('normalizeManualGroups drops groups with no teams', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-groups.js', sandbox);
+
+  const groups = sandbox.window.RHMTournamentGroups.normalizeManualGroups([
+    { name: 'Empty Pool', teams: ['', ' '] },
+    { name: 'Pool B', teams: ['C'] },
+    { name: 'Also Empty', teams: [] }
+  ]);
+
+  assert.deepEqual(groups, [
+    { id: 'group-a', name: 'Pool B', teams: ['C'] }
+  ]);
+});
+
 test('defaultVenueNames uses courts for basketball and fields for football or soccer', () => {
   const sandbox = makeSandbox();
   loadBrowserScript('assets/js/tournament-groups.js', sandbox);
@@ -84,4 +109,15 @@ test('defaultVenueNames uses courts for basketball and fields for football or so
   assert.deepEqual(sandbox.window.RHMTournamentGroups.defaultVenueNames('Basketball', 2), ['Court 1', 'Court 2']);
   assert.deepEqual(sandbox.window.RHMTournamentGroups.defaultVenueNames('Flag Football', 2), ['Field 1', 'Field 2']);
   assert.deepEqual(sandbox.window.RHMTournamentGroups.defaultVenueNames('Soccer', 1), ['Field 1']);
+});
+
+test('defaultVenueNames falls back to fields for other sports', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-groups.js', sandbox);
+
+  assert.deepEqual(sandbox.window.RHMTournamentGroups.defaultVenueNames('Volleyball', 3), [
+    'Field 1',
+    'Field 2',
+    'Field 3'
+  ]);
 });
