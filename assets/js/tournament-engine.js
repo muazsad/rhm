@@ -157,6 +157,101 @@
     return !teamsForFixture(fixture).some(function (team) { return previousSlotTeams.has(team); });
   }
 
+  function slotTeams(fixtures, slot) {
+    var teams = new Set();
+    (fixtures || []).forEach(function (fixture) {
+      if (fixture.slot === slot) {
+        teamsForFixture(fixture).forEach(function (team) { teams.add(team); });
+      }
+    });
+    return teams;
+  }
+
+  function createsThirdConsecutive(fixture, scheduled, slot) {
+    if (slot < 2) return false;
+    var previous = slotTeams(scheduled, slot - 1);
+    var twoBack = slotTeams(scheduled, slot - 2);
+    return teamsForFixture(fixture).some(function (team) {
+      return previous.has(team) && twoBack.has(team);
+    });
+  }
+
+  function backToBackCount(fixture, scheduled, slot) {
+    var previous = slotTeams(scheduled, slot - 1);
+    return teamsForFixture(fixture).filter(function (team) { return previous.has(team); }).length;
+  }
+
+  function availableVenuesForSlot(venues, slot, scheduled, blockedWindows) {
+    return venues.filter(function (venue) {
+      if (isBlocked(venue.id, slot, blockedWindows)) return false;
+      return !scheduled.find(function (fixture) {
+        return fixture.venueId === venue.id && fixture.slot === slot;
+      });
+    });
+  }
+
+  function canShareSlot(fixture, combo) {
+    var teams = new Set(teamsForFixture(fixture));
+    return !combo.some(function (other) {
+      return teamsForFixture(other).some(function (team) { return teams.has(team); });
+    });
+  }
+
+  function scoreSlotCombo(combo, scheduled, slot) {
+    var backToBack = 0;
+    combo.forEach(function (fixture) {
+      backToBack += backToBackCount(fixture, scheduled, slot);
+    });
+    return (combo.length * 1000000) - (backToBack * 1000);
+  }
+
+  function findBestSlotCombo(remaining, maxGames, scheduled, slot, allowThirdConsecutive) {
+    var candidates = remaining.filter(function (fixture) {
+      if (fixtureHasTeamConflict(fixture, scheduled, slot)) return false;
+      return allowThirdConsecutive || !createsThirdConsecutive(fixture, scheduled, slot);
+    }).sort(function (a, b) {
+      return backToBackCount(a, scheduled, slot) - backToBackCount(b, scheduled, slot);
+    });
+
+    var best = [];
+    var bestScore = -Infinity;
+    var nodeCount = 0;
+    var nodeLimit = 50000;
+
+    function consider(combo) {
+      var score = scoreSlotCombo(combo, scheduled, slot);
+      if (score > bestScore) {
+        best = combo.slice();
+        bestScore = score;
+      }
+    }
+
+    function search(start, combo) {
+      nodeCount++;
+      if (nodeCount > nodeLimit) {
+        consider(combo);
+        return;
+      }
+      if (combo.length === maxGames || start >= candidates.length) {
+        consider(combo);
+        return;
+      }
+      if (combo.length + (candidates.length - start) < Math.min(maxGames, best.length)) return;
+
+      for (var i = start; i < candidates.length; i++) {
+        var candidate = candidates[i];
+        if (!canShareSlot(candidate, combo)) continue;
+        combo.push(candidate);
+        search(i + 1, combo);
+        combo.pop();
+      }
+      consider(combo);
+    }
+
+    search(0, []);
+    return best;
+  }
+
   function scheduleFixtures(fixtures, options) {
     var settings = options.settings || {};
     var venues = normalizeVenues(options.venues || [], settings);
@@ -168,44 +263,47 @@
     var safety = 0;
 
     while (remaining.length > 0 && safety < 10000) {
-      var busyTeams = new Set();
-      var previousSlotTeams = new Set();
+      var scheduledAtSlot = scheduled.filter(function (fixture) { return fixture.slot === slot; });
+      var availableVenues = availableVenuesForSlot(venues, slot, scheduled, blockedWindows);
       var currentPlaced = [];
 
-      scheduled.forEach(function (fixture) {
-        if (fixture.slot === slot) {
-          teamsForFixture(fixture).forEach(function (team) { busyTeams.add(team); });
-        }
-        if (fixture.slot === slot - 1) {
-          teamsForFixture(fixture).forEach(function (team) { previousSlotTeams.add(team); });
-        }
-      });
+      if (availableVenues.length) {
+        var combo = findBestSlotCombo(remaining, availableVenues.length, scheduled, slot, false);
+        if (!combo.length) combo = findBestSlotCombo(remaining, availableVenues.length, scheduled, slot, true);
 
-      venues.forEach(function (venue) {
-        var candidates = [];
-        remaining.forEach(function (fixture, index) {
-          if (canPlaceFixture(fixture, venue.id, slot, scheduled.concat(currentPlaced), blockedWindows, busyTeams)) {
-            candidates.push({ fixture: fixture, index: index });
-          }
-        });
-        if (!candidates.length) return;
+        combo.forEach(function (selected, index) {
+          var venue = availableVenues[index];
+          var fixture = Object.assign({}, selected, {
+            venueId: venue.id,
+            venueName: venue.name,
+            venueIndex: venue.index,
+            slot: slot,
+            startsAt: startsAtForSlot(settings, slot)
+          });
 
-        var selected = candidates.find(function (candidate) {
-          return prefersFreshTeams(candidate.fixture, previousSlotTeams);
-        }) || candidates[0];
-        var fixture = Object.assign({}, selected.fixture, {
-          venueId: venue.id,
-          venueName: venue.name,
-          venueIndex: venue.index,
-          slot: slot,
-          startsAt: startsAtForSlot(settings, slot)
+          currentPlaced.push(fixture);
+          placed.push(fixture);
         });
 
-        remaining.splice(selected.index, 1);
-        teamsForFixture(fixture).forEach(function (team) { busyTeams.add(team); });
-        currentPlaced.push(fixture);
-        placed.push(fixture);
-      });
+        currentPlaced.forEach(function (fixture) {
+          var remainingIndex = remaining.findIndex(function (candidate) {
+            return candidate.id === fixture.id;
+          });
+          if (remainingIndex !== -1) remaining.splice(remainingIndex, 1);
+        });
+      }
+
+      if (!currentPlaced.length && scheduledAtSlot.length) {
+        slot++;
+        safety++;
+        continue;
+      }
+
+      if (!currentPlaced.length && !scheduledAtSlot.length && availableVenues.length) {
+        slot++;
+        safety++;
+        continue;
+      }
 
       scheduled = scheduled.concat(currentPlaced);
       slot++;

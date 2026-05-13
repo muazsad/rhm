@@ -526,7 +526,9 @@ function projectDivisionSeeds(div, standings) {
   return window.RHMTournamentStandings.projectSeeds({
     standings: standings || computeDivisionStandings(div),
     seedOverrides: div.seedOverrides || [],
-    advancePerGroup: advance
+    advancePerGroup: advance,
+    fixtures: div.fixtures || [],
+    requireGroupResult: true
   });
 }
 
@@ -551,6 +553,7 @@ function fixturePhaseLabel(fixture) {
 
 function resolveSeedSide(side, seeds, fixtures, seen) {
   if (!side) return 'TBD';
+  if (!seeds || !seeds.length) return 'TBD';
   if (side.sourceFixtureId) {
     const source = (fixtures || []).find(fixture => fixture.id === side.sourceFixtureId);
     return fixtureWinner(source, seeds, fixtures, seen) || side.label || 'TBD';

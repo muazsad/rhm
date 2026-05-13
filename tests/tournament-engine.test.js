@@ -241,3 +241,62 @@ test('generateDivisionSchedule avoids self matches and one-sided playoff fixture
 
   assertPlayablePlayoffFixtures(result.fixtures);
 });
+
+test('generateDivisionSchedule packs two five-team groups across three fields without three straight games', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-engine.js', sandbox);
+
+  const result = sandbox.window.RHMTournamentEngine.generateDivisionSchedule({
+    divisionId: 'rhm',
+    settings: {
+      startTime: '12:30',
+      gameDuration: 25,
+      breakBetween: 5,
+      breakBeforePlayoffs: 30,
+      playoffGameDuration: 30,
+      playoffFormat: 'top2',
+      numFields: 3
+    },
+    venues: [
+      { id: 'field-1', name: 'Field 1' },
+      { id: 'field-2', name: 'Field 2' },
+      { id: 'field-3', name: 'Field 3' }
+    ],
+    groups: [
+      { id: 'group-a', name: 'Group A', teams: ['A1', 'A2', 'A3', 'A4', 'A5'] },
+      { id: 'group-b', name: 'Group B', teams: ['B1', 'B2', 'B3', 'B4', 'B5'] }
+    ],
+    blockedWindows: []
+  });
+
+  const groupFixtures = result.fixtures.filter(fixture => fixture.phase === 'group');
+  const groupSlots = [...new Set(groupFixtures.map(fixture => fixture.slot))].sort((a, b) => a - b);
+
+  assert.equal(groupFixtures.length, 20);
+  assert.equal(groupSlots.length, 7);
+
+  groupSlots.forEach((slot, index) => {
+    const gamesInSlot = groupFixtures.filter(fixture => fixture.slot === slot);
+    const expectedGames = index === groupSlots.length - 1 ? 2 : 3;
+    assert.equal(gamesInSlot.length, expectedGames);
+  });
+
+  const slotsByTeam = {};
+  groupFixtures.forEach(fixture => {
+    [fixture.teamA, fixture.teamB].forEach(team => {
+      slotsByTeam[team] = slotsByTeam[team] || [];
+      slotsByTeam[team].push(fixture.slot);
+    });
+  });
+
+  Object.entries(slotsByTeam).forEach(([team, slots]) => {
+    const ordered = [...new Set(slots)].sort((a, b) => a - b);
+    for (let i = 2; i < ordered.length; i++) {
+      assert.notEqual(
+        ordered[i - 2] + 1 === ordered[i - 1] && ordered[i - 1] + 1 === ordered[i],
+        true,
+        `${team} plays three consecutive slots: ${ordered.join(', ')}`
+      );
+    }
+  });
+});

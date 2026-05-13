@@ -236,6 +236,10 @@
     var advance = Math.max(0, parseInt(config.advancePerGroup, 10) || 0);
     var seeds = [];
 
+    if (config.requireGroupResult && !hasScoredGroupFixture(config.fixtures || [])) {
+      return seeds;
+    }
+
     (config.standings || []).forEach(function (groupStanding) {
       var rows = applySeedOverrides(groupStanding.rows || [], groupStanding.groupId, config.seedOverrides).slice(0, advance);
 
@@ -254,9 +258,19 @@
     return seeds;
   }
 
+  function hasScoredGroupFixture(fixtures) {
+    return (fixtures || []).some(function (fixture) {
+      return fixture &&
+        fixture.phase === 'group' &&
+        isNumericScore(fixture.scoreA) &&
+        isNumericScore(fixture.scoreB);
+    });
+  }
+
   window.RHMTournamentStandings = {
     computeStandings: computeStandings,
     projectSeeds: projectSeeds,
-    applySeedOverrides: applySeedOverrides
+    applySeedOverrides: applySeedOverrides,
+    hasScoredGroupFixture: hasScoredGroupFixture
   };
 })(window);

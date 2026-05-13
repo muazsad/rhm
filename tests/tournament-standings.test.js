@@ -128,3 +128,38 @@ test('duplicate-team seed overrides keep projected seed teams unique', () => {
 
   assert.deepEqual(plain(seeds.map(seed => seed.team)), ['B', 'A', 'C']);
 });
+
+test('projectSeeds can wait for the first group result before projecting teams', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-standings.js', sandbox);
+
+  const standings = [{
+    groupId: 'group-a',
+    groupName: 'Group A',
+    rows: [
+      { team: 'A', rank: 1 },
+      { team: 'B', rank: 2 }
+    ]
+  }];
+
+  const pendingSeeds = sandbox.window.RHMTournamentStandings.projectSeeds({
+    standings,
+    advancePerGroup: 1,
+    requireGroupResult: true,
+    fixtures: [
+      { phase: 'group', teamA: 'A', teamB: 'B', scoreA: null, scoreB: null }
+    ]
+  });
+
+  const projectedSeeds = sandbox.window.RHMTournamentStandings.projectSeeds({
+    standings,
+    advancePerGroup: 1,
+    requireGroupResult: true,
+    fixtures: [
+      { phase: 'group', teamA: 'A', teamB: 'B', scoreA: 7, scoreB: 0 }
+    ]
+  });
+
+  assert.deepEqual(plain(pendingSeeds), []);
+  assert.deepEqual(plain(projectedSeeds.map(seed => seed.team)), ['A']);
+});
