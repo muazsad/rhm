@@ -226,28 +226,35 @@
 
   function buildOpeningSeeds(groups, advance) {
     var seeds = [];
-    groups.forEach(function (group) {
-      for (var seed = 1; seed <= advance; seed++) {
+    for (var seed = 1; seed <= advance; seed++) {
+      groups.forEach(function (group) {
         seeds.push(seedPlaceholder(group, seed));
-      }
-    });
+      });
+    }
     return seeds;
   }
 
-  function buildOpeningPairs(groups, advance) {
-    if (groups.length === 2 && advance === 2) {
-      return [
-        [seedPlaceholder(groups[0], 1), seedPlaceholder(groups[1], 2)],
-        [seedPlaceholder(groups[1], 1), seedPlaceholder(groups[0], 2)]
-      ];
-    }
+  function playoffSideKey(side) {
+    if (!side) return '';
+    if (side.sourceFixtureId) return 'winner:' + side.sourceFixtureId;
+    return 'seed:' + side.groupId + ':' + side.seed;
+  }
 
-    var seeds = buildOpeningSeeds(groups, advance);
-    var pairs = [];
-    for (var i = 0; i < Math.ceil(seeds.length / 2); i++) {
-      pairs.push([seeds[i], seeds[seeds.length - 1 - i] || null]);
+  function isSamePlayoffSide(sideA, sideB) {
+    return Boolean(sideA && sideB && playoffSideKey(sideA) === playoffSideKey(sideB));
+  }
+
+  function nextPowerOfTwo(value) {
+    var power = 1;
+    while (power < value) power *= 2;
+    return power;
+  }
+
+  function pickPairPartner(side, remaining) {
+    for (var i = remaining.length - 1; i >= 0; i--) {
+      if (remaining[i].groupId !== side.groupId) return i;
     }
-    return pairs;
+    return remaining.length - 1;
   }
 
   function sourcePlaceholder(fixture) {
@@ -257,52 +264,88 @@
     };
   }
 
+  function createPlayoffFixture(divisionId, fixtures, roundIndex, totalRounds, matchIndex, sideA, sideB) {
+    return {
+      id: divisionId + '-playoff-' + fixtures.length,
+      divisionId: divisionId,
+      phase: 'playoff',
+      roundIndex: roundIndex,
+      roundName: roundName(roundIndex, totalRounds),
+      matchIndex: matchIndex,
+      seedA: sideA,
+      seedB: sideB,
+      scoreA: null,
+      scoreB: null
+    };
+  }
+
+  function interleaveByeAdvancers(byes, winners) {
+    var advancers = [];
+    var max = Math.max(byes.length, winners.length);
+    for (var i = 0; i < max; i++) {
+      if (byes[i]) advancers.push(byes[i]);
+      if (winners[i]) advancers.push(winners[i]);
+    }
+    return advancers;
+  }
+
+  function buildFirstRound(entries, context) {
+    var power = nextPowerOfTwo(entries.length);
+    var byeCount = power - entries.length;
+    var byes = entries.slice(0, byeCount);
+    var remaining = entries.slice(byeCount);
+    var winners = [];
+    var matchIndex = 0;
+
+    while (remaining.length > 1) {
+      var sideA = remaining.shift();
+      var partnerIndex = pickPairPartner(sideA, remaining);
+      var sideB = remaining.splice(partnerIndex, 1)[0];
+      if (sideA && sideB && !isSamePlayoffSide(sideA, sideB)) {
+        var fixture = createPlayoffFixture(context.divisionId, context.fixtures, 0, context.totalRounds, matchIndex++, sideA, sideB);
+        context.fixtures.push(fixture);
+        winners.push(sourcePlaceholder(fixture));
+      } else {
+        winners.push(sideA || sideB);
+      }
+    }
+
+    if (remaining.length === 1) byes.push(remaining[0]);
+    return interleaveByeAdvancers(byes, winners);
+  }
+
   function buildPlayoffFixtures(options) {
     var divisionId = options.divisionId || 'division';
     var groups = normalizeGroups(options.groups || []);
     var advance = ADV[(options.settings || {}).playoffFormat] || 2;
     var fixtures = [];
-    var openingPairs = buildOpeningPairs(groups, advance);
-    var currentRound = [];
-    var roundIndex = 0;
+    var entries = buildOpeningSeeds(groups, advance);
+    if (entries.length < 2) return fixtures;
 
-    openingPairs.forEach(function (pair, mi) {
-      var fixture = {
-        id: divisionId + '-playoff-' + fixtures.length,
-        divisionId: divisionId,
-        phase: 'playoff',
-        roundIndex: roundIndex,
-        roundName: openingPairs.length === 1 ? 'Final' : roundName(roundIndex, Math.ceil(Math.log2(Math.max(2, openingPairs.length * 2)))),
-        matchIndex: mi,
-        seedA: pair[0],
-        seedB: pair[1],
-        scoreA: null,
-        scoreB: null
-      };
-      fixtures.push(fixture);
-      currentRound.push(fixture);
+    var totalRounds = Math.ceil(Math.log2(nextPowerOfTwo(entries.length)));
+    var currentRound = buildFirstRound(entries, {
+      divisionId: divisionId,
+      fixtures: fixtures,
+      totalRounds: totalRounds
     });
+    var roundIndex = 1;
 
     while (currentRound.length > 1) {
-      roundIndex++;
       var nextRound = [];
+      var matchIndex = 0;
       for (var i = 0; i < currentRound.length; i += 2) {
-        var nextFixture = {
-          id: divisionId + '-playoff-' + fixtures.length,
-          divisionId: divisionId,
-          phase: 'playoff',
-          roundIndex: roundIndex,
-          roundName: currentRound.length <= 2 ? 'Final' : roundName(roundIndex, 3),
-          matchIndex: nextRound.length,
-          seedA: sourcePlaceholder(currentRound[i]),
-          seedB: currentRound[i + 1] ? sourcePlaceholder(currentRound[i + 1]) : null,
-          scoreA: null,
-          scoreB: null
-        };
-        fixtures.push(nextFixture);
-        nextRound.push(nextFixture);
+        var sideA = currentRound[i];
+        var sideB = currentRound[i + 1];
+        if (sideA && sideB && !isSamePlayoffSide(sideA, sideB)) {
+          var nextFixture = createPlayoffFixture(divisionId, fixtures, roundIndex, totalRounds, matchIndex++, sideA, sideB);
+          fixtures.push(nextFixture);
+          nextRound.push(sourcePlaceholder(nextFixture));
+        } else {
+          nextRound.push(sideA || sideB);
+        }
       }
       currentRound = nextRound;
+      roundIndex++;
     }
 
     return fixtures;

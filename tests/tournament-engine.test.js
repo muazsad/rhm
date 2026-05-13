@@ -25,6 +25,22 @@ function sampleGroups() {
   ];
 }
 
+function playoffSideKey(side) {
+  if (!side) return '';
+  if (side.sourceFixtureId) return `winner:${side.sourceFixtureId}`;
+  return `seed:${side.groupId}:${side.seed}`;
+}
+
+function assertPlayablePlayoffFixtures(fixtures) {
+  const playoffs = fixtures.filter(fixture => fixture.phase === 'playoff');
+  assert.ok(playoffs.length > 0);
+  playoffs.forEach(fixture => {
+    assert.ok(fixture.seedA, `${fixture.id} is missing seedA`);
+    assert.ok(fixture.seedB, `${fixture.id} is missing seedB`);
+    assert.notEqual(playoffSideKey(fixture.seedA), playoffSideKey(fixture.seedB), `${fixture.id} is a self-match`);
+  });
+}
+
 test('round robin schedule omits unused fields when requested fields exceed possible concurrency', () => {
   const sandbox = makeSandbox();
   loadBrowserScript('assets/js/tournament-engine.js', sandbox);
@@ -166,4 +182,62 @@ test('validateFixtureMove blocks team conflicts and blocked windows', () => {
     }),
     { ok: false, reason: 'Field/court is blocked: Prayer break.' }
   );
+});
+
+test('generateDivisionSchedule avoids self matches and one-sided playoff fixtures for three groups top1', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-engine.js', sandbox);
+
+  const result = sandbox.window.RHMTournamentEngine.generateDivisionSchedule({
+    divisionId: 'adult',
+    settings: {
+      startTime: '10:00',
+      gameDuration: 20,
+      breakBetween: 0,
+      breakBeforePlayoffs: 0,
+      playoffGameDuration: 20,
+      playoffFormat: 'top1'
+    },
+    venues: [
+      { id: 'field-1', name: 'Field 1' },
+      { id: 'field-2', name: 'Field 2' }
+    ],
+    groups: [
+      { id: 'group-a', name: 'Group A', teams: ['A1', 'A2'] },
+      { id: 'group-b', name: 'Group B', teams: ['B1', 'B2'] },
+      { id: 'group-c', name: 'Group C', teams: ['C1', 'C2'] }
+    ],
+    blockedWindows: []
+  });
+
+  assertPlayablePlayoffFixtures(result.fixtures);
+});
+
+test('generateDivisionSchedule avoids self matches and one-sided playoff fixtures for three groups top2', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-engine.js', sandbox);
+
+  const result = sandbox.window.RHMTournamentEngine.generateDivisionSchedule({
+    divisionId: 'adult',
+    settings: {
+      startTime: '10:00',
+      gameDuration: 20,
+      breakBetween: 0,
+      breakBeforePlayoffs: 0,
+      playoffGameDuration: 20,
+      playoffFormat: 'top2'
+    },
+    venues: [
+      { id: 'field-1', name: 'Field 1' },
+      { id: 'field-2', name: 'Field 2' }
+    ],
+    groups: [
+      { id: 'group-a', name: 'Group A', teams: ['A1', 'A2'] },
+      { id: 'group-b', name: 'Group B', teams: ['B1', 'B2'] },
+      { id: 'group-c', name: 'Group C', teams: ['C1', 'C2'] }
+    ],
+    blockedWindows: []
+  });
+
+  assertPlayablePlayoffFixtures(result.fixtures);
 });
