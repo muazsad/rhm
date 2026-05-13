@@ -136,6 +136,13 @@
     .btn-login:active {
       opacity: 0.85;
     }
+
+    .form-error {
+      color: #e05555;
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 1.5em;
+    }
   </style>
 </head>
 <body>
@@ -157,14 +164,38 @@
         <label for="password">Password</label>
         <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
       </div>
+      <div class="form-error" id="login-error" role="alert"></div>
       <button type="submit" class="btn-login">Login</button>
     </form>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-config.js"></script>
+  <script src="assets/js/admin-auth.js"></script>
   <script>
-    function handleLogin(e) {
+    async function handleLogin(e) {
       e.preventDefault();
-      window.location.href = 'admin-dashboard.html';
+      const errorBox = document.getElementById('login-error');
+      const button = e.target.querySelector('.btn-login');
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next') || 'admin-dashboard.html';
+
+      errorBox.textContent = '';
+      button.disabled = true;
+      button.textContent = 'Checking...';
+
+      try {
+        await window.RHMAdminAuth.loginAdmin(
+          document.getElementById('email').value.trim(),
+          document.getElementById('password').value
+        );
+        window.location.href = next;
+      } catch (error) {
+        errorBox.textContent = error.message || 'Login failed.';
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Login';
+      }
     }
   </script>
 </body>

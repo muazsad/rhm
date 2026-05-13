@@ -249,7 +249,7 @@
       <a href="tournament-live.html" target="_blank">View Live Page</a>
       <a href="admin-dashboard.html">← Dashboard</a>
       <button class="btn-reset" onclick="resetTournament()">Reset</button>
-      <a href="admin-login.html">Logout</a>
+      <a href="admin-login.html" data-admin-logout>Logout</a>
     </div>
   </nav>
 
@@ -365,6 +365,10 @@
     </div>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase-config.js"></script>
+<script src="assets/js/admin-auth.js"></script>
+<script src="assets/js/tournament-store.js"></script>
 <script>
 const LS = 'RHM_tournament';
 const GL = ['A','B','C','D'];
@@ -384,8 +388,17 @@ function mkDefault() {
   };
 }
 
-function save() { localStorage.setItem(LS, JSON.stringify(S)); }
-function tryLoad() { try { const d = localStorage.getItem(LS); if (d) S = JSON.parse(d); } catch(e){} }
+function save() {
+  window.RHMTournamentStore.saveTournamentState(S).catch(error => console.error(error));
+}
+async function tryLoad() {
+  try {
+    const d = await window.RHMTournamentStore.loadTournamentState();
+    if (d) S = d;
+  } catch(e) {
+    console.error(e);
+  }
+}
 
 // ── TABS ──
 function switchTab(tab) {
@@ -854,9 +867,9 @@ function renderBracket(seeds) {
 }
 
 // ── RESET ──
-function resetTournament() {
+async function resetTournament() {
   if (!confirm('Reset everything? All scores, teams, and the schedule will be cleared.')) return;
-  localStorage.removeItem(LS);
+  await window.RHMTournamentStore.clearTournamentState();
   S = mkDefault();
   applySettings(S.settings);
   renderGroups();
@@ -868,10 +881,17 @@ function eh(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function ea(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ── INIT ──
-tryLoad();
-applySettings(S.settings);
-document.getElementById('t-groups').value = S.settings.numGroups;
-renderGroups();
+async function initTournamentAdmin() {
+  window.RHMAdminAuth.wireLogoutLinks();
+  const admin = await window.RHMAdminAuth.requireAdmin();
+  if (!admin) return;
+  await tryLoad();
+  applySettings(S.settings);
+  document.getElementById('t-groups').value = S.settings.numGroups;
+  renderGroups();
+}
+
+initTournamentAdmin().catch(error => console.error(error));
 </script>
 </body>
 </html>

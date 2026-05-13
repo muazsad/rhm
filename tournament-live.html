@@ -185,18 +185,21 @@
 
   <div class="live-footer" id="live-footer"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase-config.js"></script>
+<script src="assets/js/tournament-store.js"></script>
 <script>
 const LS = 'RHM_tournament';
 const GL = ['A','B','C','D'];
 const ADV = { top1:1, top2:2, top4:4 };
 let lastUpdated = null;
 
-function loadData() {
-  try { const d = localStorage.getItem(LS); return d ? JSON.parse(d) : null; } catch(e) { return null; }
+async function loadData() {
+  return await window.RHMTournamentStore.loadTournamentState();
 }
 
-function render() {
-  const S = loadData();
+async function render() {
+  const S = await loadData();
   const main = document.getElementById('main-content');
   const badge = document.getElementById('live-badge');
   const footer = document.getElementById('live-footer');
@@ -454,8 +457,8 @@ function renderBracket(S, standings, advance) {
 function eh(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ── INIT + AUTO-REFRESH ──
-render();
-setInterval(render, 30000);
+render().catch(error => console.error(error));
+setInterval(() => render().catch(error => console.error(error)), 30000);
 </script>
 </body>
 </html>

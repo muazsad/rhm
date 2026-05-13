@@ -237,7 +237,7 @@
       <span class="nav-label">Admin Panel</span>
     </div>
     <div class="nav-right">
-      <a href="admin-login.html">Logout</a>
+      <a href="admin-login.html" data-admin-logout>Logout</a>
     </div>
   </nav>
 
@@ -335,8 +335,12 @@
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-config.js"></script>
+  <script src="assets/js/admin-auth.js"></script>
+  <script src="assets/js/events-store.js"></script>
   <script>
-    let eventCount = 1;
+    let eventCount = 0;
 
     const statusMap = {
       open: { label: 'Registration Open', cls: 'badge-open' },
@@ -352,7 +356,44 @@
       'other': '🎯',
     };
 
-    function addEvent(e) {
+    function eh(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function eventCardHTML(event) {
+      return `
+        <div class="event-info">
+          <div class="event-name">${eh(event.title)}</div>
+          <div class="event-meta">
+            ${event.dateLabel ? `<span>🗓 ${eh(event.dateLabel)}</span>` : ''}
+            ${event.timeLabel ? `<span>🕙 ${eh(event.timeLabel)}</span>` : ''}
+            ${event.location ? `<span>📍 ${eh(event.location)}</span>` : ''}
+            <span>${event.sportIcon || sportEmoji[event.sport] || '🎯'} ${eh(event.sportLabel)}</span>
+          </div>
+          <span class="badge ${event.statusClass}">${eh(event.statusLabel)}</span>
+        </div>
+        <div class="event-actions">
+          <button class="btn-edit" type="button">Edit</button>
+          <button class="btn-delete" type="button" onclick="deleteEvent('${event.id}')">Delete</button>
+        </div>
+      `;
+    }
+
+    function renderEvents(events) {
+      const list = document.getElementById('events-list');
+      list.innerHTML = '';
+      events.forEach(event => {
+        const card = document.createElement('div');
+        card.className = 'event-card';
+        card.id = event.id;
+        card.innerHTML = eventCardHTML(event);
+        list.appendChild(card);
+      });
+      eventCount = events.length;
+      document.getElementById('ev-count').textContent = eventCount + ' event' + (eventCount !== 1 ? 's' : '');
+    }
+
+    async function addEvent(e) {
       e.preventDefault();
       const name = document.getElementById('ev-name').value.trim();
       const sport = document.getElementById('ev-sport').value;
@@ -360,34 +401,22 @@
       const date = document.getElementById('ev-date').value;
       const time = document.getElementById('ev-time').value;
       const location = document.getElementById('ev-location').value.trim();
+      const description = document.getElementById('ev-desc').value.trim();
 
-      const id = 'ev-' + Date.now();
-      const s = statusMap[status];
-      const emoji = sportEmoji[sport] || '🎯';
-      const sportLabel = document.getElementById('ev-sport').options[document.getElementById('ev-sport').selectedIndex].text;
-
-      const dateDisplay = date ? new Date(date + 'T00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
-      const timeDisplay = time ? new Date('1970-01-01T' + time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+      const created = await window.RHMEventsStore.createEvent({
+        title: name,
+        sport: sport,
+        status: status,
+        date: date,
+        time: time,
+        location: location,
+        description: description
+      });
 
       const card = document.createElement('div');
       card.className = 'event-card';
-      card.id = id;
-      card.innerHTML = `
-        <div class="event-info">
-          <div class="event-name">${name}</div>
-          <div class="event-meta">
-            ${dateDisplay ? `<span>🗓 ${dateDisplay}</span>` : ''}
-            ${timeDisplay ? `<span>🕙 ${timeDisplay}</span>` : ''}
-            ${location ? `<span>📍 ${location}</span>` : ''}
-            <span>${emoji} ${sportLabel}</span>
-          </div>
-          <span class="badge ${s.cls}">${s.label}</span>
-        </div>
-        <div class="event-actions">
-          <button class="btn-edit">Edit</button>
-          <button class="btn-delete" onclick="deleteEvent('${id}')">Delete</button>
-        </div>
-      `;
+      card.id = created.id;
+      card.innerHTML = eventCardHTML(created);
 
       document.getElementById('events-list').prepend(card);
       eventCount++;
@@ -395,7 +424,8 @@
       e.target.reset();
     }
 
-    function deleteEvent(id) {
+    async function deleteEvent(id) {
+      await window.RHMEventsStore.deleteEvent(id);
       const el = document.getElementById(id);
       if (el) {
         el.remove();
@@ -403,6 +433,17 @@
         document.getElementById('ev-count').textContent = eventCount + ' event' + (eventCount !== 1 ? 's' : '');
       }
     }
+
+    async function initAdminEvents() {
+      window.RHMAdminAuth.wireLogoutLinks();
+      const admin = await window.RHMAdminAuth.requireAdmin();
+      if (!admin) return;
+      renderEvents(await window.RHMEventsStore.listAdminEvents());
+    }
+
+    initAdminEvents().catch(error => {
+      document.getElementById('events-list').innerHTML = '<div class="event-card">' + eh(error.message || 'Could not load events.') + '</div>';
+    });
   </script>
 
 </body>

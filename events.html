@@ -383,7 +383,7 @@
   </div>
 
   <!-- EVENTS -->
-  <section class="events-section">
+  <section class="events-section" id="events-list">
 
     <div class="event-card reveal">
       <div class="event-date-block">
@@ -499,6 +499,55 @@
     </div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-config.js"></script>
+  <script src="assets/js/events-store.js"></script>
+  <script>
+    function escapeEventText(value) {
+      return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function renderPublicEvent(event) {
+      const date = event.date ? new Date(event.date + 'T00:00:00') : null;
+      const day = date ? String(date.getDate()).padStart(2, '0') : 'TBA';
+      const month = date ? date.toLocaleDateString('en-US', { month: 'short' }) : '';
+      return `
+        <div class="event-card reveal visible">
+          <div class="event-date-block">
+            <div>
+              <div class="event-day">${escapeEventText(day)}</div>
+              <div class="event-month">${escapeEventText(month)}</div>
+            </div>
+          </div>
+          <div class="event-details">
+            <div>
+              <div class="event-badge">${escapeEventText(event.statusLabel)}</div>
+              <h2 class="event-title">${escapeEventText(event.title)}</h2>
+              <div class="event-meta">
+                ${event.location ? `<span class="event-meta-item">📍 ${escapeEventText(event.location)}</span>` : ''}
+                ${event.timeLabel ? `<span class="event-meta-item">🕙 ${escapeEventText(event.timeLabel)}</span>` : ''}
+                ${event.dateLabel ? `<span class="event-meta-item">🗓 ${escapeEventText(event.dateLabel)}</span>` : ''}
+              </div>
+              <p class="event-description">${escapeEventText(event.description || event.sportLabel)}</p>
+            </div>
+            <div class="event-ctas">
+              <a href="#" class="btn-primary">Register Now →</a>
+              <a href="tournament-live.html" class="btn-outline" style="border-color:var(--green);color:var(--green);">View Live Results</a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function hydratePublicEvents() {
+      if (!window.RHM_SUPABASE_READY) return;
+      const events = await window.RHMEventsStore.listPublishedEvents();
+      if (!events.length) return;
+      document.getElementById('events-list').innerHTML = events.map(renderPublicEvent).join('');
+    }
+
+    hydratePublicEvents().catch(error => console.error(error));
+  </script>
   <script>
     const obs = new IntersectionObserver(entries => {
       entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });

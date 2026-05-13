@@ -185,7 +185,7 @@
       <span class="nav-label">Admin Panel</span>
     </div>
     <div class="nav-right">
-      <a href="admin-login.html">Logout</a>
+      <a href="admin-login.html" data-admin-logout>Logout</a>
     </div>
   </nav>
 
@@ -216,5 +216,12 @@
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-config.js"></script>
+  <script src="assets/js/admin-auth.js"></script>
+  <script>
+    window.RHMAdminAuth.wireLogoutLinks();
+    window.RHMAdminAuth.requireAdmin();
+  </script>
 </body>
 </html>
