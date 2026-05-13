@@ -58,6 +58,28 @@
     return response.data.state;
   }
 
+  async function loadPublicTournamentState() {
+    var state = await loadTournamentState();
+    return state && state.status === 'published' ? state : null;
+  }
+
+  async function publishTournamentState(state) {
+    var next = Object.assign({}, state, {
+      status: 'published',
+      publishedAt: new Date().toISOString(),
+      activePublicTournament: true
+    });
+    return saveTournamentState(next);
+  }
+
+  async function unpublishTournamentState(state) {
+    var next = Object.assign({}, state, {
+      status: 'draft',
+      activePublicTournament: false
+    });
+    return saveTournamentState(next);
+  }
+
   async function clearTournamentState() {
     var client = readyClient();
     window.localStorage.removeItem(LS);
@@ -73,7 +95,10 @@
 
   window.RHMTournamentStore = {
     loadTournamentState: loadTournamentState,
+    loadPublicTournamentState: loadPublicTournamentState,
     saveTournamentState: saveTournamentState,
+    publishTournamentState: publishTournamentState,
+    unpublishTournamentState: unpublishTournamentState,
     clearTournamentState: clearTournamentState
   };
 })(window);

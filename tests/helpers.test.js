@@ -97,3 +97,36 @@ test('event store normalizes records for public rendering', () => {
   assert.equal(event.dateLabel, 'June 14, 2026');
   assert.equal(event.timeLabel, '10:00 AM');
 });
+
+test('tournament store hides drafts from public loads', async () => {
+  const sandbox = makeSandbox();
+  sandbox.window.RHM_SUPABASE_CONFIG_OVERRIDE = {
+    url: 'https://your-project-ref.supabase.co',
+    anonKey: 'your-supabase-anon-key'
+  };
+
+  loadBrowserScript('assets/js/supabase-config.js', sandbox);
+  loadBrowserScript('assets/js/tournament-store.js', sandbox);
+
+  await sandbox.window.RHMTournamentStore.saveTournamentState({ id: 't1', status: 'draft', divisions: [] });
+
+  assert.equal(await sandbox.window.RHMTournamentStore.loadPublicTournamentState(), null);
+  assert.equal((await sandbox.window.RHMTournamentStore.loadTournamentState()).status, 'draft');
+});
+
+test('publishTournamentState marks local tournament as published', async () => {
+  const sandbox = makeSandbox();
+  sandbox.window.RHM_SUPABASE_CONFIG_OVERRIDE = {
+    url: 'https://your-project-ref.supabase.co',
+    anonKey: 'your-supabase-anon-key'
+  };
+
+  loadBrowserScript('assets/js/supabase-config.js', sandbox);
+  loadBrowserScript('assets/js/tournament-store.js', sandbox);
+
+  const published = await sandbox.window.RHMTournamentStore.publishTournamentState({ id: 't1', status: 'draft', divisions: [] });
+
+  assert.equal(published.status, 'published');
+  assert.equal(typeof published.publishedAt, 'string');
+  assert.equal((await sandbox.window.RHMTournamentStore.loadPublicTournamentState()).status, 'published');
+});
