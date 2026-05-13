@@ -90,6 +90,12 @@
       padding: 0.8rem 2rem; cursor: pointer; transition: background 0.2s;
     }
     .btn-primary:hover { background: #27a343; }
+    .sched-header .btn-reset {
+      background: transparent; color: #e05555; font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.05rem; letter-spacing: 0.12em; border: 1px solid var(--border2);
+      padding: 0.75rem 1.25rem; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+    }
+    .sched-header .btn-reset:hover { border-color: #e05555; color: #ff7070; }
     .btn-sm-outline {
       font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
       padding: 0.35rem 0.7rem; background: transparent; border: 1px solid var(--border2);
@@ -302,11 +308,29 @@
           </div>
           <div class="f-row">
             <label class="f-label" for="t-sport">Sport</label>
-            <select class="f-select" id="t-sport">
+            <select class="f-select" id="t-sport" onchange="onSportChange()">
               <option>Basketball</option>
               <option>3v3 Basketball</option>
               <option>Soccer</option>
               <option selected>Flag Football</option>
+            </select>
+          </div>
+          <div class="f-row">
+            <label class="f-label" for="t-setup-mode">Setup Mode</label>
+            <select class="f-select" id="t-setup-mode" onchange="onSetupModeChange()">
+              <option value="manual-groups">Create Groups</option>
+              <option value="team-list">List All Teams</option>
+            </select>
+          </div>
+          <div class="f-row" id="team-list-wrap" style="display:none;">
+            <label class="f-label" for="t-team-list">Team List</label>
+            <textarea class="f-input" id="t-team-list" rows="8" placeholder="One team per line"></textarea>
+          </div>
+          <div class="f-row" id="group-method-wrap" style="display:none;">
+            <label class="f-label" for="t-group-method">Group Draw</label>
+            <select class="f-select" id="t-group-method">
+              <option value="seeded">Seeded snake</option>
+              <option value="random">Random draw</option>
             </select>
           </div>
           <div class="f-grid-2">
@@ -316,7 +340,7 @@
             </div>
             <div class="f-row">
               <label class="f-label" for="t-fields">Fields / Courts</label>
-              <input class="f-input" id="t-fields" type="number" min="1" max="4" value="2">
+              <input class="f-input" id="t-fields" type="number" min="1" max="4" value="2" oninput="onFieldsChange()">
             </div>
           </div>
           <div class="f-grid-2">
@@ -343,6 +367,43 @@
               </select>
             </div>
           </div>
+          <div class="f-grid-2">
+            <div class="f-row">
+              <label class="f-label" for="t-break-po">Break Before Playoffs (min)</label>
+              <input class="f-input" id="t-break-po" type="number" min="0" max="180" value="30">
+            </div>
+            <div class="f-row">
+              <label class="f-label" for="t-po-duration">Playoff Game Duration (min)</label>
+              <input class="f-input" id="t-po-duration" type="number" min="5" max="120" value="25">
+            </div>
+          </div>
+          <div class="f-grid-2">
+            <div class="f-row">
+              <label class="f-label" for="t-win-points">Win Points</label>
+              <input class="f-input" id="t-win-points" type="number" min="0" max="20" value="3">
+            </div>
+            <div class="f-row">
+              <label class="f-label" for="t-draw-points">Draw Points</label>
+              <input class="f-input" id="t-draw-points" type="number" min="0" max="20" value="1">
+            </div>
+          </div>
+          <div class="f-grid-2">
+            <div class="f-row">
+              <label class="f-label" for="t-loss-points">Loss Points</label>
+              <input class="f-input" id="t-loss-points" type="number" min="0" max="20" value="0">
+            </div>
+            <div class="f-row">
+              <label class="f-label" for="t-ties">Ties Allowed</label>
+              <select class="f-select" id="t-ties">
+                <option value="true">Yes</option>
+                <option value="false" selected>No</option>
+              </select>
+            </div>
+          </div>
+          <div class="f-row" style="margin-bottom:0;">
+            <label class="f-label">Venues</label>
+            <div id="venue-controls"></div>
+          </div>
         </div>
       </div>
 
@@ -366,7 +427,12 @@
         <div class="page-label">Step 2</div>
         <h1 class="page-headline" id="sched-headline" style="margin-bottom:0;">Schedule</h1>
       </div>
-      <button class="btn-primary" onclick="window.print()">Export PDF</button>
+      <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+        <span id="publish-status" style="font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);">Draft</span>
+        <button class="btn-primary" onclick="publishTournament()">Publish</button>
+        <button class="btn-reset" onclick="unpublishTournament()">Unpublish</button>
+        <button class="btn-primary" onclick="window.print()">Export PDF</button>
+      </div>
     </div>
     <div class="sched-wrap">
       <div id="sched-grid"></div>
@@ -390,25 +456,100 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/supabase-config.js"></script>
 <script src="assets/js/admin-auth.js"></script>
+<script src="assets/js/tournament-groups.js"></script>
+<script src="assets/js/tournament-standings.js"></script>
 <script src="assets/js/tournament-engine.js"></script>
 <script src="assets/js/tournament-store.js"></script>
 <script>
-const LS = 'RHM_tournament';
 const GL = ['A','B','C','D'];
 const ADV = { top1:1, top2:2, top4:4 };
 
 let S = mkDefault();
+let draggingFixtureId = null;
 
 function mkDefault() {
   return {
-    settings: { name:'', sport:'Flag Football', numGroups:2, numFields:2, gameDuration:25, breakBetween:5, startTime:'10:00', playoffFormat:'top2' },
-    groups: [
-      { name:'Group A', teams:['','','',''] },
-      { name:'Group B', teams:['','','',''] }
-    ],
-    schedule: [],
-    playoffs: []
+    id: 'active',
+    status: 'draft',
+    activePublicTournament: false,
+    settings: { name:'', sport:'Flag Football' },
+    divisions: [{
+      id: 'division-main',
+      name: 'Main Division',
+      sport: 'Flag Football',
+      setupMode: 'manual-groups',
+      schedulingMode: 'shared',
+      settings: {
+        numGroups: 2,
+        numFields: 2,
+        gameDuration: 25,
+        breakBetween: 5,
+        breakBeforePlayoffs: 30,
+        playoffGameDuration: 25,
+        startTime: '10:00',
+        playoffFormat: 'top2',
+        winPoints: 3,
+        drawPoints: 1,
+        lossPoints: 0,
+        tiesAllowed: false
+      },
+      teamList: '',
+      groups: [
+        { id:'group-a', name:'Group A', teams:['','','',''] },
+        { id:'group-b', name:'Group B', teams:['','','',''] }
+      ],
+      venues: [
+        { id:'venue-1', name:'Field 1' },
+        { id:'venue-2', name:'Field 2' }
+      ],
+      blockedWindows: [],
+      fixtures: [],
+      seedOverrides: []
+    }]
   };
+}
+
+function activeDivision() {
+  if (!S.divisions || !S.divisions.length) S = mkDefault();
+  return S.divisions[0];
+}
+
+function migrateLoadedState(state) {
+  if (!state || state.divisions) return state;
+  const migrated = mkDefault();
+  migrated.settings = { name: state.settings?.name || '', sport: state.settings?.sport || 'Flag Football' };
+  migrated.status = state.status || 'draft';
+  migrated.activePublicTournament = state.activePublicTournament || false;
+  migrated.publishedAt = state.publishedAt;
+  migrated.divisions[0].sport = migrated.settings.sport;
+  migrated.divisions[0].settings = Object.assign({}, migrated.divisions[0].settings, state.settings || {});
+  migrated.divisions[0].groups = (state.groups || migrated.divisions[0].groups).map((group, index) => ({
+    id: group.id || 'group-' + GL[index].toLowerCase(),
+    name: group.name || 'Group ' + GL[index],
+    teams: group.teams || []
+  }));
+  migrated.divisions[0].venues = Array.from({ length: state.settings?.effectiveFields || state.settings?.numFields || 2 }, (_, index) => ({
+    id: 'venue-' + (index + 1),
+    name: (migrated.settings.sport || '').includes('Basketball') ? 'Court ' + (index + 1) : 'Field ' + (index + 1)
+  }));
+  migrated.divisions[0].fixtures = (state.schedule || []).map(g => ({
+    id: g.id,
+    divisionId: 'division-main',
+    phase: 'group',
+    groupId: 'group-' + GL[g.gi].toLowerCase(),
+    groupName: g.gName,
+    teamA: g.tA,
+    teamB: g.tB,
+    venueId: 'venue-' + (g.field + 1),
+    venueName: migrated.divisions[0].venues[g.field]?.name || 'Field ' + (g.field + 1),
+    slot: g.slot,
+    startsAt: g.time,
+    scoreA: g.scoreA,
+    scoreB: g.scoreB,
+    ref: g.ref || '',
+    status: g.scoreA !== null && g.scoreA !== undefined && g.scoreB !== null && g.scoreB !== undefined ? 'final' : 'scheduled'
+  }));
+  return migrated;
 }
 
 function save() {
@@ -417,7 +558,7 @@ function save() {
 async function tryLoad() {
   try {
     const d = await window.RHMTournamentStore.loadTournamentState();
-    if (d) S = d;
+    if (d) S = migrateLoadedState(d);
   } catch(e) {
     console.error(e);
   }
@@ -433,41 +574,148 @@ function switchTab(tab) {
 
 // ── SETTINGS ──
 function readSettings() {
-  return {
-    name: document.getElementById('t-name').value.trim(),
-    sport: document.getElementById('t-sport').value,
+  const div = activeDivision();
+  const sport = document.getElementById('t-sport').value;
+  const divisionSettings = {
     numGroups: Math.max(1, Math.min(4, parseInt(document.getElementById('t-groups').value) || 2)),
     numFields: Math.max(1, Math.min(4, parseInt(document.getElementById('t-fields').value) || 2)),
     gameDuration: parseInt(document.getElementById('t-duration').value) || 25,
     breakBetween: parseInt(document.getElementById('t-break').value) || 5,
+    breakBeforePlayoffs: parseInt(document.getElementById('t-break-po').value) || 0,
+    playoffGameDuration: parseInt(document.getElementById('t-po-duration').value) || 25,
     startTime: document.getElementById('t-start').value || '10:00',
-    playoffFormat: document.getElementById('t-playoff').value
+    playoffFormat: document.getElementById('t-playoff').value,
+    winPoints: parseInt(document.getElementById('t-win-points').value) || 0,
+    drawPoints: parseInt(document.getElementById('t-draw-points').value) || 0,
+    lossPoints: parseInt(document.getElementById('t-loss-points').value) || 0,
+    tiesAllowed: document.getElementById('t-ties').value === 'true'
   };
+  S.settings = {
+    name: document.getElementById('t-name').value.trim(),
+    sport: sport
+  };
+  div.sport = sport;
+  div.setupMode = document.getElementById('t-setup-mode').value;
+  div.teamList = document.getElementById('t-team-list').value;
+  div.settings = Object.assign({}, div.settings, divisionSettings);
+  syncVenueCount(divisionSettings.numFields);
+  return div.settings;
 }
 
 function applySettings(cfg) {
-  document.getElementById('t-name').value = cfg.name || '';
-  document.getElementById('t-sport').value = cfg.sport || 'Flag Football';
-  document.getElementById('t-groups').value = cfg.numGroups || 2;
-  document.getElementById('t-fields').value = cfg.numFields || 2;
-  document.getElementById('t-duration').value = cfg.gameDuration || 25;
-  document.getElementById('t-break').value = cfg.breakBetween || 5;
-  document.getElementById('t-start').value = cfg.startTime || '10:00';
-  document.getElementById('t-playoff').value = cfg.playoffFormat || 'top2';
+  const div = activeDivision();
+  const global = cfg || S.settings || {};
+  const settings = div.settings || {};
+  document.getElementById('t-name').value = global.name || '';
+  document.getElementById('t-sport').value = global.sport || div.sport || 'Flag Football';
+  document.getElementById('t-setup-mode').value = div.setupMode || 'manual-groups';
+  document.getElementById('t-team-list').value = div.teamList || '';
+  document.getElementById('t-groups').value = settings.numGroups || 2;
+  document.getElementById('t-fields').value = settings.numFields || 2;
+  document.getElementById('t-duration').value = settings.gameDuration || 25;
+  document.getElementById('t-break').value = settings.breakBetween || 5;
+  document.getElementById('t-break-po').value = settings.breakBeforePlayoffs ?? 30;
+  document.getElementById('t-po-duration').value = settings.playoffGameDuration || 25;
+  document.getElementById('t-start').value = settings.startTime || '10:00';
+  document.getElementById('t-playoff').value = settings.playoffFormat || 'top2';
+  document.getElementById('t-win-points').value = settings.winPoints ?? 3;
+  document.getElementById('t-draw-points').value = settings.drawPoints ?? 1;
+  document.getElementById('t-loss-points').value = settings.lossPoints ?? 0;
+  document.getElementById('t-ties').value = settings.tiesAllowed === true ? 'true' : 'false';
+  syncVenueCount(settings.numFields || 2);
+  renderSetupMode();
+  renderVenues();
 }
 
 function onGroupsChange() {
   const n = Math.max(1, Math.min(4, parseInt(document.getElementById('t-groups').value) || 2));
-  while (S.groups.length < n) S.groups.push({ name:'Group ' + GL[S.groups.length], teams:['','','',''] });
-  if (S.groups.length > n) S.groups = S.groups.slice(0, n);
+  const div = activeDivision();
+  div.settings.numGroups = n;
+  while (div.groups.length < n) div.groups.push({ id:'group-' + GL[div.groups.length].toLowerCase(), name:'Group ' + GL[div.groups.length], teams:['','','',''] });
+  if (div.groups.length > n) div.groups = div.groups.slice(0, n);
   renderGroups();
+}
+
+function onFieldsChange() {
+  const count = Math.max(1, Math.min(4, parseInt(document.getElementById('t-fields').value) || 2));
+  activeDivision().settings.numFields = count;
+  syncVenueCount(count);
+  renderVenues();
+}
+
+function onSportChange() {
+  const div = activeDivision();
+  const previousSport = div.sport || S.settings.sport || 'Flag Football';
+  S.settings.sport = document.getElementById('t-sport').value;
+  div.sport = S.settings.sport;
+  syncVenueCount(div.settings.numFields || 2, previousSport);
+  renderVenues();
+}
+
+function onSetupModeChange() {
+  const div = activeDivision();
+  div.setupMode = document.getElementById('t-setup-mode').value;
+  renderSetupMode();
+  renderGroups();
+}
+
+function renderSetupMode() {
+  const mode = document.getElementById('t-setup-mode').value;
+  document.getElementById('team-list-wrap').style.display = mode === 'team-list' ? '' : 'none';
+  document.getElementById('group-method-wrap').style.display = mode === 'team-list' ? '' : 'none';
+}
+
+function venueDefaultName(sport, index) {
+  return (String(sport || '').includes('Basketball') ? 'Court ' : 'Field ') + (index + 1);
+}
+
+function syncVenueCount(count, previousSport) {
+  const div = activeDivision();
+  const total = Math.max(1, Math.min(4, parseInt(count) || 2));
+  div.venues = Array.isArray(div.venues) ? div.venues : [];
+  while (div.venues.length < total) {
+    const index = div.venues.length;
+    div.venues.push({ id:'venue-' + (index + 1), name: venueDefaultName(div.sport || S.settings.sport, index) });
+  }
+  if (div.venues.length > total) div.venues = div.venues.slice(0, total);
+  div.venues.forEach((venue, index) => {
+    venue.id = venue.id || 'venue-' + (index + 1);
+    const oldDefault = previousSport ? venueDefaultName(previousSport, index) : '';
+    if (!venue.name || venue.name === oldDefault || /^(Field|Court) \d+$/.test(venue.name)) {
+      venue.name = venueDefaultName(div.sport || S.settings.sport, index);
+    }
+  });
+}
+
+function renderVenues() {
+  const div = activeDivision();
+  const c = document.getElementById('venue-controls');
+  if (!c) return;
+  c.innerHTML = div.venues.map((venue, index) => `
+    <div class="group-team-row">
+      <span class="team-num">${index + 1}</span>
+      <input class="f-input" type="text" value="${ea(venue.name)}" placeholder="${ea(venueDefaultName(div.sport || S.settings.sport, index))}" oninput="setVenue(${index}, this.value)">
+    </div>
+  `).join('');
+}
+
+function setVenue(index, value) {
+  const div = activeDivision();
+  if (!div.venues[index]) div.venues[index] = { id:'venue-' + (index + 1), name:'' };
+  div.venues[index].name = value;
 }
 
 // ── GROUP INPUTS ──
 function renderGroups() {
   const c = document.getElementById('groups-container');
   c.innerHTML = '';
-  S.groups.forEach((grp, gi) => {
+  const div = activeDivision();
+  if ((div.setupMode || 'manual-groups') === 'team-list') {
+    c.innerHTML = '<div class="notice">Teams will be drawn into groups from the team list when you generate the schedule.</div>';
+    return;
+  }
+  ensureGroupInputs();
+  div.groups.forEach((grp, gi) => {
     const d = document.createElement('div');
     d.className = 'group-block';
     const filled = grp.teams.filter(t => t.trim()).length;
@@ -493,132 +741,165 @@ function renderGroups() {
 }
 
 function setTeam(gi, ti, val) {
-  S.groups[gi].teams[ti] = val;
+  const div = activeDivision();
+  div.groups[gi].teams[ti] = val;
   const head = document.querySelector(`#gteams-${gi}`).closest('.group-block').querySelector('.group-head span:last-child');
-  if (head) { const f = S.groups[gi].teams.filter(t=>t.trim()).length; head.textContent = f + ' team' + (f!==1?'s':''); }
+  if (head) { const f = div.groups[gi].teams.filter(t=>t.trim()).length; head.textContent = f + ' team' + (f!==1?'s':''); }
 }
 
-function addTeam(gi) { S.groups[gi].teams.push(''); renderGroups(); }
-function removeTeam(gi, ti) { if (S.groups[gi].teams.length > 2) { S.groups[gi].teams.splice(ti,1); renderGroups(); } }
+function addTeam(gi) { activeDivision().groups[gi].teams.push(''); renderGroups(); }
+function removeTeam(gi, ti) { const groups = activeDivision().groups; if (groups[gi].teams.length > 2) { groups[gi].teams.splice(ti,1); renderGroups(); } }
+
+function ensureGroupInputs() {
+  const div = activeDivision();
+  const n = div.settings.numGroups || 2;
+  while (div.groups.length < n) div.groups.push({ id:'group-' + GL[div.groups.length].toLowerCase(), name:'Group ' + GL[div.groups.length], teams:['','','',''] });
+  div.groups = div.groups.slice(0, n);
+  div.groups.forEach((group, index) => {
+    group.id = 'group-' + GL[index].toLowerCase();
+    group.name = group.name || 'Group ' + GL[index];
+    group.teams = Array.isArray(group.teams) ? group.teams : [];
+    while (group.teams.length < 4) group.teams.push('');
+  });
+}
+
+function competitionGroups() {
+  const div = activeDivision();
+  return (div.groups || []).slice(0, div.settings.numGroups || 2).map((group, index) => ({
+    id: 'group-' + GL[index].toLowerCase(),
+    name: group.name || 'Group ' + GL[index],
+    teams: window.RHMTournamentGroups.parseTeamList(group.teams || [])
+  }));
+}
+
+function groupsForUi(groups) {
+  return (groups || []).map((group, index) => {
+    const teams = (group.teams || []).slice();
+    while (teams.length < 4) teams.push('');
+    return {
+      id: group.id || 'group-' + GL[index].toLowerCase(),
+      name: group.name || 'Group ' + GL[index],
+      teams: teams
+    };
+  });
+}
 
 // ── SCHEDULE GENERATION ──
 function generateSchedule() {
-  S.settings = readSettings();
-  const n = S.settings.numGroups;
-  while (S.groups.length < n) S.groups.push({ name:'Group '+GL[S.groups.length], teams:['','','',''] });
-  S.groups = S.groups.slice(0, n);
-  S.groups.forEach(g => { g.name = 'Group ' + GL[S.groups.indexOf(g)]; });
+  const div = activeDivision();
+  readSettings();
 
-  const result = window.RHMTournamentEngine.generateSchedule({
-    settings: S.settings,
-    groups: S.groups
+  let groups = competitionGroups();
+  if (div.setupMode === 'team-list') {
+    groups = window.RHMTournamentGroups.buildGroupsFromTeamList({
+      teams: div.teamList,
+      numGroups: div.settings.numGroups,
+      method: document.getElementById('t-group-method').value
+    });
+  }
+
+  const result = window.RHMTournamentEngine.generateDivisionSchedule({
+    divisionId: div.id,
+    settings: div.settings,
+    groups: groups,
+    venues: div.venues,
+    blockedWindows: div.blockedWindows || []
   });
-  S.settings = result.settings;
-  S.groups = result.groups;
-  S.schedule = result.schedule;
-  S.playoffs = result.playoffs;
-  S.scheduleSummary = result.summary;
+  div.settings = Object.assign({}, div.settings, result.settings);
+  div.groups = groupsForUi(result.groups);
+  div.venues = result.venues;
+  div.fixtures = result.fixtures.map(fixture => Object.assign({ status:'scheduled' }, fixture));
+  div.scheduleSummary = result.summary;
 
   save();
   switchTab('schedule');
 }
 
-function buildPlayoffs(total) {
-  const rounds = [];
-  let t = total;
-  while (t > 1) { rounds.push(t/2); t = Math.ceil(t/2); }
-  const matches = [];
-  let mid = 0;
-  rounds.forEach((count, ri) => {
-    for (let m = 0; m < count; m++) {
-      matches.push({ id:'po'+mid++, ri, rName:roundName(ri, rounds.length), mi:m, tA:null, tB:null, sA:null, sB:null });
-    }
-  });
-  return matches;
-}
-
-function roundName(ri, total) {
-  if (ri === total-1) return 'Final';
-  if (ri === total-2) return 'Semifinals';
-  if (ri === total-3) return 'Quarterfinals';
-  return `Round ${ri+1}`;
-}
-
 // ── SCHEDULE RENDER ──
 function renderSchedule() {
-  if (!S.schedule.length) {
-    document.getElementById('sched-grid').innerHTML = '<div class="notice">No schedule yet — complete Setup and click Generate Schedule.</div>';
+  const div = activeDivision();
+  const fixtures = div.fixtures || [];
+  if (!fixtures.length) {
+    document.getElementById('sched-grid').innerHTML = '<div class="notice">No schedule yet - complete Setup and click Generate Schedule.</div>';
     document.getElementById('po-preview').innerHTML = '';
+    renderPublishStatus();
     return;
   }
   document.getElementById('sched-headline').textContent = S.settings.name || 'Schedule';
 
-  const slots = [...new Set(S.schedule.map(g => g.slot))].sort((a,b)=>a-b);
+  const slots = [...new Set(fixtures.map(g => g.slot))].sort((a,b)=>a-b);
   const timeOf = {};
-  S.schedule.forEach(g => { timeOf[g.slot] = g.time; });
-  const nf = window.RHMTournamentEngine.getActiveFieldCount(S.schedule) || S.settings.numFields;
-  const summary = S.scheduleSummary || {
-    totalGames: S.schedule.length,
+  fixtures.forEach(g => { timeOf[g.slot] = g.startsAt; });
+  const venues = (div.venues && div.venues.length) ? div.venues : [];
+  const summary = div.scheduleSummary || {
+    totalFixtures: fixtures.length,
     totalSlots: slots.length,
-    requestedFields: S.settings.numFields,
-    activeFields: nf,
-    gameBlockMinutes: (parseInt(S.settings.gameDuration) || 25) + (parseInt(S.settings.breakBetween) || 0),
+    gameBlockMinutes: (parseInt(div.settings.gameDuration) || 25) + (parseInt(div.settings.breakBetween) || 0),
     note: ''
   };
+  const seeds = projectedSeeds();
 
   let html = `
     <div class="sched-meta">
-      <div class="sched-stat"><span>Games</span><strong>${summary.totalGames}</strong></div>
+      <div class="sched-stat"><span>Fixtures</span><strong>${summary.totalFixtures || fixtures.length}</strong></div>
       <div class="sched-stat"><span>Time Slots</span><strong>${summary.totalSlots}</strong></div>
-      <div class="sched-stat"><span>Fields Used</span><strong>${summary.activeFields}</strong></div>
+      <div class="sched-stat"><span>Venues</span><strong>${venues.length}</strong></div>
       <div class="sched-stat"><span>Block</span><strong>${summary.gameBlockMinutes} min</strong></div>
     </div>
     ${summary.note ? `<div class="sched-note">${eh(summary.note)}</div>` : ''}
-    <table class="sched-table"><thead><tr><th>Field</th>`;
+    <table class="sched-table"><thead><tr><th>Venue</th>`;
   slots.forEach(s => { html += `<th>${timeOf[s]}</th>`; });
   html += '</tr></thead><tbody>';
 
-  for (let f = 0; f < nf; f++) {
-    html += `<tr><td>Field ${f+1}</td>`;
+  venues.forEach(venue => {
+    html += `<tr><td>${eh(venue.name)}</td>`;
     slots.forEach(s => {
-      const g = S.schedule.find(x => x.field === f && x.slot === s);
-      if (!g) { html += '<td class="empty-cell"></td>'; return; }
-      const scored = g.scoreA !== null && g.scoreB !== null;
+      const g = fixtures.find(x => x.venueId === venue.id && x.slot === s);
+      if (!g) {
+        html += `<td class="empty-cell" ondragover="onFixtureDragOver(event)" ondrop="onFixtureDrop(event,'${ea(venue.id)}',${s})"></td>`;
+        return;
+      }
+      const scored = isScored(g);
       html += `
-        <td>
-          <div class="game-card${scored?' scored':''}" id="gc-${g.id}">
-            <div class="gc-group">${eh(g.gName)}</div>
-            <div class="gc-teams">${eh(g.tA)}<span class="vs">vs</span>${eh(g.tB)}</div>
-            <div class="gc-ref">Ref: ${eh(g.ref)}</div>
+        <td ondragover="onFixtureDragOver(event)" ondrop="onFixtureDrop(event,'${ea(venue.id)}',${s})">
+          <div class="game-card${scored?' scored':''}" id="gc-${g.id}" draggable="true" ondragstart="onFixtureDragStart(event,'${ea(g.id)}')">
+            <div class="gc-group">${eh(fixturePhaseLabel(g))}</div>
+            <div class="gc-teams">${eh(fixtureTeamLabel(g, 'A', seeds))}<span class="vs">vs</span>${eh(fixtureTeamLabel(g, 'B', seeds))}</div>
+            <div class="gc-ref">${g.phase === 'group' ? 'Ref: ' + eh(g.ref || '-') : eh(g.roundName || 'Playoff')}</div>
             <div class="gc-score">
               <input class="score-in" id="sa-${g.id}" type="number" min="0" value="${g.scoreA !== null ? g.scoreA : ''}" placeholder="0">
-              <span class="score-sep">—</span>
+              <span class="score-sep">-</span>
               <input class="score-in" id="sb-${g.id}" type="number" min="0" value="${g.scoreB !== null ? g.scoreB : ''}" placeholder="0">
               <button class="btn-score" onclick="saveScore('${g.id}')">Save</button>
-              ${scored ? '<span class="score-ok">✓</span>' : ''}
+              ${scored ? '<span class="score-ok">Saved</span>' : ''}
             </div>
           </div>
         </td>`;
     });
     html += '</tr>';
-  }
+  });
   html += '</tbody></table>';
   document.getElementById('sched-grid').innerHTML = html;
 
   renderPoPreview();
+  renderPublishStatus();
 }
 
 function renderPoPreview() {
-  if (!S.playoffs.length) { document.getElementById('po-preview').innerHTML = ''; return; }
+  const div = activeDivision();
+  const playoffs = (div.fixtures || []).filter(fixture => fixture.phase === 'playoff');
+  if (!playoffs.length) { document.getElementById('po-preview').innerHTML = ''; return; }
   const byRound = {};
-  S.playoffs.forEach(m => { (byRound[m.ri] = byRound[m.ri] || { name:m.rName, ms:[] }).ms.push(m); });
+  const seeds = projectedSeeds();
+  playoffs.forEach(m => { (byRound[m.roundIndex] = byRound[m.roundIndex] || { name:m.roundName, ms:[] }).ms.push(m); });
 
   let html = '<div class="po-section"><div class="po-title">Playoffs</div>';
   Object.values(byRound).forEach(r => {
     html += `<div class="po-row"><div class="po-round">${r.name}</div><div class="po-pills">`;
     r.ms.forEach(m => {
-      const a = m.tA || 'TBD', b = m.tB || 'TBD';
-      html += `<div class="po-pill${m.tA&&m.tB?' seeded':''}">${eh(a)} vs ${eh(b)}</div>`;
+      const a = fixtureTeamLabel(m, 'A', seeds);
+      const b = fixtureTeamLabel(m, 'B', seeds);
+      html += `<div class="po-pill seeded">${eh(a)} vs ${eh(b)}</div>`;
     });
     html += '</div></div>';
   });
@@ -627,61 +908,67 @@ function renderPoPreview() {
 }
 
 function saveScore(id) {
-  const g = S.schedule.find(x => x.id === id);
+  const div = activeDivision();
+  const g = (div.fixtures || []).find(x => x.id === id);
   if (!g) return;
   const a = parseInt(document.getElementById('sa-'+id).value);
   const b = parseInt(document.getElementById('sb-'+id).value);
   if (isNaN(a) || isNaN(b)) return;
-  g.scoreA = a; g.scoreB = b;
+  g.scoreA = a;
+  g.scoreB = b;
+  g.status = 'final';
+  g.winner = a > b ? fixtureTeamLabel(g, 'A', projectedSeeds()) : b > a ? fixtureTeamLabel(g, 'B', projectedSeeds()) : null;
   save();
   const card = document.getElementById('gc-'+id);
   if (card) {
     card.classList.add('scored');
     if (!card.querySelector('.score-ok')) {
-      card.querySelector('.btn-score').insertAdjacentHTML('afterend', '<span class="score-ok">✓</span>');
+      card.querySelector('.btn-score').insertAdjacentHTML('afterend', '<span class="score-ok">Saved</span>');
     }
   }
+  renderSchedule();
   if (document.getElementById('panel-bracket').classList.contains('active')) renderBracketTab();
 }
 
 // ── STANDINGS ──
 function computeStandings() {
-  return S.groups.map((grp, gi) => {
-    const teams = grp.teams.filter(t => t.trim());
-    const st = {};
-    teams.forEach(t => { st[t] = { W:0, L:0, D:0, PF:0, PA:0 }; });
-    S.schedule.filter(g => g.gi === gi && g.scoreA !== null && g.scoreB !== null).forEach(g => {
-      if (!st[g.tA] || !st[g.tB]) return;
-      st[g.tA].PF += g.scoreA; st[g.tA].PA += g.scoreB;
-      st[g.tB].PF += g.scoreB; st[g.tB].PA += g.scoreA;
-      if (g.scoreA > g.scoreB) { st[g.tA].W++; st[g.tB].L++; }
-      else if (g.scoreB > g.scoreA) { st[g.tB].W++; st[g.tA].L++; }
-      else { st[g.tA].D++; st[g.tB].D++; }
-    });
-    const rows = teams.map(t => ({ team:t, ...st[t], diff:st[t].PF-st[t].PA }));
-    rows.sort((a,b) => b.W-a.W || b.diff-a.diff || b.PF-a.PF);
-    return { label: GL[gi], rows };
+  const div = activeDivision();
+  return window.RHMTournamentStandings.computeStandings({
+    groups: competitionGroups(),
+    fixtures: div.fixtures || [],
+    rules: div.settings || {}
+  });
+}
+
+function projectedSeeds(standings) {
+  const div = activeDivision();
+  const advance = ADV[(div.settings || {}).playoffFormat] || 2;
+  return window.RHMTournamentStandings.projectSeeds({
+    standings: standings || computeStandings(),
+    seedOverrides: div.seedOverrides || [],
+    advancePerGroup: advance
   });
 }
 
 // ── BRACKET & STANDINGS TAB ──
 function renderBracketTab() {
+  const div = activeDivision();
   const standings = computeStandings();
-  const advance = ADV[S.settings.playoffFormat] || 2;
+  const advance = ADV[div.settings.playoffFormat] || 2;
 
   // Standings tables
   let html = '';
   standings.forEach(gs => {
     html += `<div class="stg-block">
-      <div class="stg-name">Group ${gs.label}</div>
+      <div class="stg-name">${eh(gs.groupName)}</div>
       <table class="stg-tbl">
-        <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>+/-</th></tr></thead>
+        <thead><tr><th>#</th><th>Team</th><th>Pts</th><th>W</th><th>D</th><th>L</th><th>PF</th><th>PA</th><th>+/-</th></tr></thead>
         <tbody>
           ${gs.rows.map((r,ri) => `
             <tr class="${ri<advance?'adv':''}">
-              <td><span class="stg-rank">${ri+1}</span></td>
+              <td><span class="stg-rank">${r.rank || ri+1}</span></td>
               <td>${eh(r.team)}</td>
-              <td>${r.W}</td><td>${r.L}</td><td>${r.PF}</td><td>${r.PA}</td>
+              <td>${r.points}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.pf}</td><td>${r.pa}</td>
               <td class="${r.diff>0?'diff-p':r.diff<0?'diff-n':''}">${r.diff>0?'+':''}${r.diff}</td>
             </tr>`).join('')}
         </tbody>
@@ -690,76 +977,30 @@ function renderBracketTab() {
   });
   document.getElementById('standings-area').innerHTML = html || '<div class="notice">Complete setup to see standings.</div>';
 
-  // Seeded playoff teams
-  const seeds = [];
-  standings.forEach((gs, gi) => {
-    gs.rows.slice(0, advance).forEach((r,si) => { seeds.push({ team:r.team, gi, seed:si }); });
-  });
-  renderBracket(seeds);
-}
-
-function seedMatchups(seeds) {
-  const byGrp = {};
-  seeds.forEach(s => { (byGrp[s.gi] = byGrp[s.gi] || []).push(s); });
-  const keys = Object.keys(byGrp).map(Number).sort();
-  const pairs = [];
-  // Cross-seed: group0[0] vs group1[1], group1[0] vs group0[1], etc.
-  if (keys.length >= 2) {
-    for (let i = 0; i < keys.length; i += 2) {
-      const gA = byGrp[keys[i]] || [];
-      const gB = byGrp[keys[i+1]] || [];
-      if (gA[0] && gB[1]) pairs.push([gA[0].team, gB[1].team]);
-      if (gB[0] && gA[1]) pairs.push([gB[0].team, gA[1].team]);
-    }
-    // If odd groups, add remaining
-    if (keys.length % 2 !== 0) {
-      const last = byGrp[keys[keys.length-1]] || [];
-      last.forEach(s => pairs.push([s.team, null]));
-    }
-  } else {
-    // Single group or no seeds
-    for (let i = 0; i < seeds.length; i += 2) pairs.push([seeds[i]?.team, seeds[i+1]?.team]);
-  }
-  return pairs;
+  renderBracket(projectedSeeds(standings));
 }
 
 function renderBracket(seeds) {
+  const div = activeDivision();
   const container = document.getElementById('bracket-area');
-  if (!seeds.length || !S.playoffs.length) {
+  const playoffs = (div.fixtures || []).filter(fixture => fixture.phase === 'playoff');
+  if (!seeds.length || !playoffs.length) {
     container.innerHTML = '<div class="notice">Generate a schedule to see the bracket.</div>';
     return;
   }
 
-  const pairs = seedMatchups(seeds);
-  if (!pairs.length) { container.innerHTML = '<div class="notice">Not enough teams for a bracket.</div>'; return; }
+  const byRound = {};
+  playoffs.forEach(fixture => { (byRound[fixture.roundIndex] = byRound[fixture.roundIndex] || []).push(fixture); });
+  const rounds = Object.keys(byRound).map(Number).sort((a,b)=>a-b).map(index => byRound[index]);
+  const totalSlots = Math.max.apply(null, rounds.map(round => round.length));
 
-  // Build rounds
-  const r0 = pairs.map(([a,b]) => ({ tA: a||'TBD', tB: b||'TBD', sA:null, sB:null }));
-  const rounds = [r0];
-  let prev = r0.length;
-  while (prev > 1) {
-    const next = Math.ceil(prev/2);
-    rounds.push(Array.from({length:next}, () => ({ tA:'TBD', tB:'TBD', sA:null, sB:null })));
-    prev = next;
-  }
-
-  const labels = rounds.map((_,ri) => {
-    const t = rounds.length;
-    if (ri === t-1) return 'Final';
-    if (ri === t-2) return t > 2 ? 'Semifinals' : 'Final';
-    if (ri === t-3) return 'Quarterfinals';
-    return `Round ${ri+1}`;
-  });
-  if (rounds.length === 1) labels[0] = 'Final';
-
-  const totalSlots = rounds[0].length;
   const wrap = document.createElement('div');
   wrap.className = 'bracket-flex';
 
   rounds.forEach((matches, ri) => {
     const col = document.createElement('div');
     col.className = 'r-col';
-    col.innerHTML = `<div class="r-label">${labels[ri]}</div>`;
+    col.innerHTML = `<div class="r-label">${eh(matches[0]?.roundName || 'Round ' + (ri + 1))}</div>`;
     const mc = document.createElement('div');
     mc.className = 'r-matches';
     const flex = totalSlots / matches.length;
@@ -769,13 +1010,22 @@ function renderBracket(seeds) {
       slot.style.flex = flex;
       const card = document.createElement('div');
       card.className = 'b-card';
-      [{k:'tA'},{k:'tB'}].forEach(({k}) => {
+      ['A','B'].forEach(side => {
+        const team = fixtureTeamLabel(m, side, seeds);
         const row = document.createElement('div');
-        const tbd = m[k] === 'TBD' || !m[k];
+        const tbd = !team || team === 'TBD';
+        const winner = m.winner && m.winner === team;
         row.className = 'b-team' + (tbd ? ' tbd' : '');
+        if (winner) row.className += ' win';
         const span = document.createElement('span');
-        span.textContent = m[k] || 'TBD';
+        span.textContent = team || 'TBD';
         row.appendChild(span);
+        if (isScored(m)) {
+          const score = document.createElement('span');
+          score.className = 'b-sc';
+          score.textContent = side === 'A' ? m.scoreA : m.scoreB;
+          row.appendChild(score);
+        }
         card.appendChild(row);
       });
       slot.appendChild(card);
@@ -800,7 +1050,8 @@ function renderBracket(seeds) {
   const cs = document.createElement('div');
   cs.className = 'champ-slot';
   cs.style.flex = totalSlots;
-  cs.innerHTML = `<div class="champ-card"><div class="champ-ico">🏆</div><div class="champ-lbl">Winner</div><div class="champ-nm">TBD</div></div>`;
+  const finalFixture = playoffs.slice().sort((a,b)=>(b.roundIndex||0)-(a.roundIndex||0))[0];
+  cs.innerHTML = `<div class="champ-card"><div class="champ-lbl">Winner</div><div class="champ-nm">${eh(finalFixture?.winner || 'TBD')}</div></div>`;
   cc.appendChild(cs);
   wrap.appendChild(cc);
 
@@ -847,6 +1098,75 @@ function renderBracket(seeds) {
   });
 }
 
+function isScored(fixture) {
+  return fixture && fixture.scoreA !== null && fixture.scoreA !== '' && fixture.scoreB !== null && fixture.scoreB !== '';
+}
+
+function fixturePhaseLabel(fixture) {
+  if (fixture.phase === 'playoff') return fixture.roundName || 'Playoff';
+  return fixture.groupName || 'Group';
+}
+
+function resolveSeedSide(side, seeds) {
+  if (!side) return 'TBD';
+  if (side.sourceFixtureId) {
+    const source = (activeDivision().fixtures || []).find(fixture => fixture.id === side.sourceFixtureId);
+    return source?.winner || side.label || 'TBD';
+  }
+  const seed = (seeds || []).find(item => item.groupId === side.groupId && item.seed === side.seed);
+  return seed?.team || side.label || 'TBD';
+}
+
+function fixtureTeamLabel(fixture, side, seeds) {
+  if (!fixture) return 'TBD';
+  const key = side === 'A' ? 'teamA' : 'teamB';
+  const seedKey = side === 'A' ? 'seedA' : 'seedB';
+  return fixture[key] || resolveSeedSide(fixture[seedKey], seeds);
+}
+
+function onFixtureDragStart(event, fixtureId) {
+  draggingFixtureId = fixtureId;
+  event.dataTransfer.setData('text/plain', fixtureId);
+}
+
+function onFixtureDragOver(event) {
+  event.preventDefault();
+}
+
+function onFixtureDrop(event, venueId, slot) {
+  event.preventDefault();
+  const div = activeDivision();
+  const fixtureId = event.dataTransfer.getData('text/plain') || draggingFixtureId;
+  const result = window.RHMTournamentEngine.moveFixture({
+    fixtureId,
+    fixtures: div.fixtures,
+    targetVenueId: venueId,
+    targetSlot: slot,
+    blockedWindows: div.blockedWindows,
+    venues: div.venues,
+    settings: div.settings
+  });
+  if (!result.ok) { alert(result.reason); return; }
+  div.fixtures = result.fixtures;
+  save();
+  renderSchedule();
+}
+
+async function publishTournament() {
+  S = await window.RHMTournamentStore.publishTournamentState(S);
+  renderPublishStatus();
+}
+
+async function unpublishTournament() {
+  S = await window.RHMTournamentStore.unpublishTournamentState(S);
+  renderPublishStatus();
+}
+
+function renderPublishStatus() {
+  const node = document.getElementById('publish-status');
+  if (node) node.textContent = S.status === 'published' ? 'Published' : 'Draft';
+}
+
 // ── RESET ──
 async function resetTournament() {
   if (!confirm('Reset everything? All scores, teams, and the schedule will be cleared.')) return;
@@ -854,6 +1174,7 @@ async function resetTournament() {
   S = mkDefault();
   applySettings(S.settings);
   renderGroups();
+  renderPublishStatus();
   switchTab('setup');
 }
 
@@ -868,8 +1189,8 @@ async function initTournamentAdmin() {
   if (!admin) return;
   await tryLoad();
   applySettings(S.settings);
-  document.getElementById('t-groups').value = S.settings.numGroups;
   renderGroups();
+  renderPublishStatus();
 }
 
 initTournamentAdmin().catch(error => console.error(error));
