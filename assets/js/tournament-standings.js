@@ -115,7 +115,10 @@
     if (b.points !== a.points) return b.points - a.points;
     if (b.wins !== a.wins) return b.wins - a.wins;
     if (b.diff !== a.diff) return b.diff - a.diff;
+    return compareByPointsForAndName(a, b);
+  }
 
+  function compareHeadToHead(a, b, fixtures, rules) {
     var h2hA = headToHeadFor(a.team, b.team, fixtures, rules);
     var h2hB = headToHeadFor(b.team, a.team, fixtures, rules);
     if (h2hA.played && h2hB.played) {
@@ -123,8 +126,45 @@
       if (h2hB.diff !== h2hA.diff) return h2hB.diff - h2hA.diff;
     }
 
+    return compareByPointsForAndName(a, b);
+  }
+
+  function compareByPointsForAndName(a, b) {
     if (b.pf !== a.pf) return b.pf - a.pf;
     return String(a.team).localeCompare(String(b.team));
+  }
+
+  function samePrimaryTie(a, b) {
+    return a.points === b.points && a.wins === b.wins && a.diff === b.diff;
+  }
+
+  function rankRows(rows, fixtures, rules) {
+    var ranked = rows.slice().sort(function (a, b) {
+      return compareRows(a, b, fixtures, rules);
+    });
+    var result = [];
+    var start = 0;
+
+    while (start < ranked.length) {
+      var end = start + 1;
+      while (end < ranked.length && samePrimaryTie(ranked[start], ranked[end])) {
+        end++;
+      }
+
+      var cohort = ranked.slice(start, end);
+      if (cohort.length === 2) {
+        cohort.sort(function (a, b) {
+          return compareHeadToHead(a, b, fixtures, rules);
+        });
+      } else if (cohort.length > 2) {
+        cohort.sort(compareByPointsForAndName);
+      }
+
+      result = result.concat(cohort);
+      start = end;
+    }
+
+    return result;
   }
 
   function computeStandings(options) {
@@ -144,9 +184,7 @@
         applyFixture(rowsByTeam, fixture, rules);
       });
 
-      rows.sort(function (a, b) {
-        return compareRows(a, b, fixtures, rules);
-      });
+      rows = rankRows(rows, fixtures, rules);
 
       rows.forEach(function (row, index) {
         row.rank = index + 1;

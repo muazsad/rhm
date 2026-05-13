@@ -59,6 +59,28 @@ test('computeStandings uses head to head after points wins and differential are 
   assert.deepEqual(plain(standings[0].rows.filter(row => row.team === 'A' || row.team === 'B').map(row => row.diff)), [0, 0]);
 });
 
+test('computeStandings falls back deterministically for multi-team head to head cycles', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-standings.js', sandbox);
+
+  function rankTeams(teams) {
+    const standings = sandbox.window.RHMTournamentStandings.computeStandings({
+      groups: [{ id: 'group-a', name: 'Group A', teams }],
+      fixtures: [
+        { phase: 'group', groupId: 'group-a', teamA: 'A', teamB: 'B', scoreA: 1, scoreB: 0, status: 'final' },
+        { phase: 'group', groupId: 'group-a', teamA: 'B', teamB: 'C', scoreA: 1, scoreB: 0, status: 'final' },
+        { phase: 'group', groupId: 'group-a', teamA: 'C', teamB: 'A', scoreA: 1, scoreB: 0, status: 'final' }
+      ],
+      rules: { winPoints: 3, drawPoints: 1, lossPoints: 0, tiesAllowed: false }
+    });
+
+    return plain(standings[0].rows.map(row => row.team));
+  }
+
+  assert.deepEqual(rankTeams(['A', 'B', 'C']), ['A', 'B', 'C']);
+  assert.deepEqual(rankTeams(['A', 'C', 'B']), ['A', 'B', 'C']);
+});
+
 test('seed overrides force projected seed order', () => {
   const sandbox = makeSandbox();
   loadBrowserScript('assets/js/tournament-standings.js', sandbox);
