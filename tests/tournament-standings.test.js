@@ -80,3 +80,29 @@ test('seed overrides force projected seed order', () => {
 
   assert.deepEqual(plain(seeds.map(seed => seed.team)), ['B', 'A']);
 });
+
+test('duplicate-team seed overrides keep projected seed teams unique', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-standings.js', sandbox);
+
+  const standings = [{
+    groupId: 'group-a',
+    groupName: 'Group A',
+    rows: [
+      { team: 'A', rank: 1 },
+      { team: 'B', rank: 2 },
+      { team: 'C', rank: 3 }
+    ]
+  }];
+
+  const seeds = sandbox.window.RHMTournamentStandings.projectSeeds({
+    standings,
+    advancePerGroup: 3,
+    seedOverrides: [
+      { groupId: 'group-a', seed: 1, team: 'B' },
+      { groupId: 'group-a', seed: 2, team: 'B' }
+    ]
+  });
+
+  assert.deepEqual(plain(seeds.map(seed => seed.team)), ['B', 'A', 'C']);
+});

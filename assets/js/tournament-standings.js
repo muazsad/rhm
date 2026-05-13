@@ -172,7 +172,7 @@
     (seedOverrides || []).forEach(function (override) {
       var seedIndex = parseInt(override && override.seed, 10) - 1;
       var row = override && override.groupId === groupId ? byTeam[override.team] : null;
-      if (!row || seedIndex < 0 || seedIndex >= ordered.length || ordered[seedIndex]) return;
+      if (!row || used[row.team] || seedIndex < 0 || seedIndex >= ordered.length || ordered[seedIndex]) return;
 
       ordered[seedIndex] = row;
       used[row.team] = true;
