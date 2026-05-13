@@ -36,8 +36,27 @@ test('computeStandings uses configurable points and point differential before he
     rules: { winPoints: 3, drawPoints: 1, lossPoints: 0, tiesAllowed: false }
   });
 
-  assert.deepEqual(plain(standings[0].rows.map(row => row.team)), ['A', 'B', 'C']);
+  assert.deepEqual(plain(standings[0].rows.map(row => row.team)), ['A', 'C', 'B']);
   assert.equal(standings[0].rows[0].diff, 7);
+});
+
+test('computeStandings uses head to head after points wins and differential are tied', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-standings.js', sandbox);
+
+  const standings = sandbox.window.RHMTournamentStandings.computeStandings({
+    groups: [{ id: 'group-a', name: 'Group A', teams: ['A', 'B', 'C', 'D'] }],
+    fixtures: [
+      { phase: 'group', groupId: 'group-a', teamA: 'A', teamB: 'B', scoreA: 1, scoreB: 0, status: 'final' },
+      { phase: 'group', groupId: 'group-a', teamA: 'A', teamB: 'C', scoreA: 0, scoreB: 1, status: 'final' },
+      { phase: 'group', groupId: 'group-a', teamA: 'B', teamB: 'D', scoreA: 3, scoreB: 2, status: 'final' },
+      { phase: 'group', groupId: 'group-a', teamA: 'C', teamB: 'D', scoreA: 5, scoreB: 0, status: 'final' }
+    ],
+    rules: { winPoints: 3, drawPoints: 1, lossPoints: 0, tiesAllowed: false }
+  });
+
+  assert.deepEqual(plain(standings[0].rows.map(row => row.team)), ['C', 'A', 'B', 'D']);
+  assert.deepEqual(plain(standings[0].rows.filter(row => row.team === 'A' || row.team === 'B').map(row => row.diff)), [0, 0]);
 });
 
 test('seed overrides force projected seed order', () => {

@@ -114,6 +114,7 @@
   function compareRows(a, b, fixtures, rules) {
     if (b.points !== a.points) return b.points - a.points;
     if (b.wins !== a.wins) return b.wins - a.wins;
+    if (b.diff !== a.diff) return b.diff - a.diff;
 
     var h2hA = headToHeadFor(a.team, b.team, fixtures, rules);
     var h2hB = headToHeadFor(b.team, a.team, fixtures, rules);
@@ -122,7 +123,6 @@
       if (h2hB.diff !== h2hA.diff) return h2hB.diff - h2hA.diff;
     }
 
-    if (b.diff !== a.diff) return b.diff - a.diff;
     if (b.pf !== a.pf) return b.pf - a.pf;
     return String(a.team).localeCompare(String(b.team));
   }
