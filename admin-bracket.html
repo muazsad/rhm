@@ -932,7 +932,6 @@ function renderPoPreview() {
   if (!playoffs.length) { document.getElementById('po-preview').innerHTML = ''; return; }
   const byRound = {};
   const seeds = projectedSeeds();
-  if (!seeds.length) { document.getElementById('po-preview').innerHTML = ''; return; }
   playoffs.forEach(m => { (byRound[m.roundIndex] = byRound[m.roundIndex] || { name:m.roundName, ms:[] }).ms.push(m); });
 
   let html = '<div class="po-section"><div class="po-title">Playoffs</div>';
@@ -990,7 +989,7 @@ function projectedSeeds(standings) {
     seedOverrides: div.seedOverrides || [],
     advancePerGroup: advance,
     fixtures: div.fixtures || [],
-    requireGroupResult: true
+    requireCompletedGroupStage: true
   });
 }
 
@@ -1028,7 +1027,7 @@ function renderBracket(seeds) {
   const div = activeDivision();
   const container = document.getElementById('bracket-area');
   const playoffs = (div.fixtures || []).filter(fixture => fixture.phase === 'playoff');
-  if (!seeds.length || !playoffs.length) {
+  if (!playoffs.length) {
     container.innerHTML = '<div class="notice">Generate a schedule to see the bracket.</div>';
     return;
   }
@@ -1156,10 +1155,10 @@ function resolveSeedSide(side, seeds) {
   if (!seeds || !seeds.length) return 'TBD';
   if (side.sourceFixtureId) {
     const source = (activeDivision().fixtures || []).find(fixture => fixture.id === side.sourceFixtureId);
-    return source?.winner || side.label || 'TBD';
+    return source?.winner || 'TBD';
   }
   const seed = (seeds || []).find(item => item.groupId === side.groupId && item.seed === side.seed);
-  return seed?.team || side.label || 'TBD';
+  return seed?.team || 'TBD';
 }
 
 function fixtureTeamLabel(fixture, side, seeds) {

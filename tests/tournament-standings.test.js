@@ -163,3 +163,41 @@ test('projectSeeds can wait for the first group result before projecting teams',
   assert.deepEqual(plain(pendingSeeds), []);
   assert.deepEqual(plain(projectedSeeds.map(seed => seed.team)), ['A']);
 });
+
+test('projectSeeds can wait for completed group stage before projecting semifinal teams', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-standings.js', sandbox);
+
+  const standings = [{
+    groupId: 'group-a',
+    groupName: 'Group A',
+    rows: [
+      { team: 'A', rank: 1 },
+      { team: 'B', rank: 2 },
+      { team: 'C', rank: 3 }
+    ]
+  }];
+
+  const partialSeeds = sandbox.window.RHMTournamentStandings.projectSeeds({
+    standings,
+    advancePerGroup: 2,
+    requireCompletedGroupStage: true,
+    fixtures: [
+      { phase: 'group', groupId: 'group-a', teamA: 'A', teamB: 'B', scoreA: 3, scoreB: 1 },
+      { phase: 'group', groupId: 'group-a', teamA: 'A', teamB: 'C', scoreA: null, scoreB: null }
+    ]
+  });
+
+  const completedSeeds = sandbox.window.RHMTournamentStandings.projectSeeds({
+    standings,
+    advancePerGroup: 2,
+    requireCompletedGroupStage: true,
+    fixtures: [
+      { phase: 'group', groupId: 'group-a', teamA: 'A', teamB: 'B', scoreA: 3, scoreB: 1 },
+      { phase: 'group', groupId: 'group-a', teamA: 'A', teamB: 'C', scoreA: 2, scoreB: 0 }
+    ]
+  });
+
+  assert.deepEqual(plain(partialSeeds), []);
+  assert.deepEqual(plain(completedSeeds.map(seed => seed.team)), ['A', 'B']);
+});

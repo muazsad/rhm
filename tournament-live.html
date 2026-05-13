@@ -528,7 +528,7 @@ function projectDivisionSeeds(div, standings) {
     seedOverrides: div.seedOverrides || [],
     advancePerGroup: advance,
     fixtures: div.fixtures || [],
-    requireGroupResult: true
+    requireCompletedGroupStage: true
   });
 }
 
@@ -556,10 +556,10 @@ function resolveSeedSide(side, seeds, fixtures, seen) {
   if (!seeds || !seeds.length) return 'TBD';
   if (side.sourceFixtureId) {
     const source = (fixtures || []).find(fixture => fixture.id === side.sourceFixtureId);
-    return fixtureWinner(source, seeds, fixtures, seen) || side.label || 'TBD';
+    return fixtureWinner(source, seeds, fixtures, seen) || 'TBD';
   }
   const seed = (seeds || []).find(item => item.groupId === side.groupId && item.seed === side.seed);
-  return seed?.team || side.label || 'TBD';
+  return seed?.team || 'TBD';
 }
 
 function fixtureTeamLabel(fixture, side, seeds, fixtures, seen) {
@@ -586,7 +586,7 @@ function renderBracket(div, seeds) {
   const container = document.getElementById('bracket-area');
   const playoffs = (div.fixtures || []).filter(fixture => fixture.phase === 'playoff');
   if (!container) return;
-  if (!seeds.length || !playoffs.length) {
+  if (!playoffs.length) {
     container.innerHTML = '<div class="notice" style="padding:1.5rem;border-style:dashed">Playoffs begin after group stage.</div>';
     return;
   }

@@ -240,6 +240,10 @@
       return seeds;
     }
 
+    if (config.requireCompletedGroupStage && !hasCompletedGroupStage(config.fixtures || [])) {
+      return seeds;
+    }
+
     (config.standings || []).forEach(function (groupStanding) {
       var rows = applySeedOverrides(groupStanding.rows || [], groupStanding.groupId, config.seedOverrides).slice(0, advance);
 
@@ -267,10 +271,21 @@
     });
   }
 
+  function hasCompletedGroupStage(fixtures) {
+    var groupFixtures = (fixtures || []).filter(function (fixture) {
+      return fixture && fixture.phase === 'group';
+    });
+
+    return groupFixtures.length > 0 && groupFixtures.every(function (fixture) {
+      return isNumericScore(fixture.scoreA) && isNumericScore(fixture.scoreB);
+    });
+  }
+
   window.RHMTournamentStandings = {
     computeStandings: computeStandings,
     projectSeeds: projectSeeds,
     applySeedOverrides: applySeedOverrides,
-    hasScoredGroupFixture: hasScoredGroupFixture
+    hasScoredGroupFixture: hasScoredGroupFixture,
+    hasCompletedGroupStage: hasCompletedGroupStage
   };
 })(window);
