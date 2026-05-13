@@ -3,7 +3,59 @@
   var ADV = { top1: 1, top2: 2, top4: 4 };
 
   function cleanTeams(group) {
-    return (group.teams || []).map(function (team) { return String(team || '').trim(); }).filter(Boolean);
+    var teams = Array.isArray(group) ? group : (group.teams || []);
+    return teams.map(function (team) { return String(team || '').trim(); }).filter(Boolean);
+  }
+
+  function parseMinutes(value, fallback) {
+    var parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function getGameBlockMinutes(settings) {
+    return parseMinutes(settings.gameDuration, 25) + parseMinutes(settings.breakBetween, 0);
+  }
+
+  function formatTime(totalMinutes) {
+    return String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0') + ':' + String(totalMinutes % 60).padStart(2, '0');
+  }
+
+  function startsAtForSlot(settings, slot) {
+    var parts = String(settings.startTime || '10:00').split(':').map(Number);
+    var sh = Number.isFinite(parts[0]) ? parts[0] : 10;
+    var sm = Number.isFinite(parts[1]) ? parts[1] : 0;
+    return formatTime((sh * 60) + sm + (slot * getGameBlockMinutes(settings)));
+  }
+
+  function normalizeGroups(groups) {
+    return (groups || []).map(function (group, gi) {
+      return {
+        id: group.id || 'group-' + GL[gi],
+        name: group.name || 'Group ' + GL[gi],
+        teams: cleanTeams(group)
+      };
+    });
+  }
+
+  function normalizeVenues(venues, settings) {
+    var requestedFields = Math.max(1, Math.min(8, parseMinutes(settings.numFields, 1)));
+    if (venues && venues.length) {
+      return venues.map(function (venue, index) {
+        return {
+          id: venue.id || 'field-' + (index + 1),
+          name: venue.name || 'Field ' + (index + 1),
+          index: index
+        };
+      });
+    }
+
+    return Array.from({ length: requestedFields }, function (_, index) {
+      return {
+        id: 'field-' + (index + 1),
+        name: 'Field ' + (index + 1),
+        index: index
+      };
+    });
   }
 
   function roundName(ri, total) {
@@ -46,34 +98,285 @@
   }
 
   function getTimeSlots(schedule) {
-    return [].concat(new Set((schedule || []).map(function (game) { return game.slot; }))).sort(function (a, b) { return a - b; });
+    return Array.from(new Set((schedule || []).map(function (game) { return game.slot; }))).sort(function (a, b) { return a - b; });
   }
 
-  function generateRoundRobinGames(groups) {
-    var allGames = [];
-    groups.forEach(function (grp, gi) {
-      var teams = cleanTeams(grp);
+  function generateRoundRobinFixtures(divisionId, groups) {
+    var fixtures = [];
+    groups.forEach(function (group, gi) {
+      var teams = cleanTeams(group);
       for (var i = 0; i < teams.length; i++) {
         for (var j = i + 1; j < teams.length; j++) {
-          allGames.push({ gi: gi, gName: 'Group ' + GL[gi], tA: teams[i], tB: teams[j] });
+          fixtures.push({
+            id: divisionId + '-group-' + fixtures.length,
+            divisionId: divisionId,
+            phase: 'group',
+            groupId: group.id,
+            groupName: group.name,
+            groupIndex: gi,
+            teamA: teams[i],
+            teamB: teams[j],
+            scoreA: null,
+            scoreB: null
+          });
         }
       }
     });
-    return allGames;
+    return fixtures;
   }
 
-  function interleaveGroups(groups, allGames) {
-    var byGrp = groups.map(function (_, gi) {
-      return allGames.filter(function (game) { return game.gi === gi; });
+  function teamsForFixture(fixture) {
+    return [fixture.teamA, fixture.teamB].filter(Boolean);
+  }
+
+  function isBlocked(venueId, slot, blockedWindows) {
+    return (blockedWindows || []).find(function (block) {
+      var appliesToVenue = block.venueId === 'all' || block.venueId === venueId;
+      return appliesToVenue && slot >= block.startSlot && slot < block.endSlot;
     });
-    var maxLen = Math.max.apply(null, byGrp.map(function (games) { return games.length; }));
-    var interleaved = [];
-    for (var i = 0; i < maxLen; i++) {
-      byGrp.forEach(function (games) {
-        if (games[i]) interleaved.push(games[i]);
+  }
+
+  function fixtureHasTeamConflict(fixture, fixtures, slot) {
+    var teams = new Set(teamsForFixture(fixture));
+    if (!teams.size) return false;
+    return fixtures.find(function (other) {
+      if (other.id === fixture.id || other.slot !== slot) return false;
+      return teamsForFixture(other).some(function (team) { return teams.has(team); });
+    });
+  }
+
+  function canPlaceFixture(fixture, venueId, slot, scheduled, blockedWindows, busyTeams) {
+    if (isBlocked(venueId, slot, blockedWindows)) return false;
+    if (scheduled.find(function (other) { return other.venueId === venueId && other.slot === slot; })) return false;
+    return !teamsForFixture(fixture).some(function (team) {
+      return busyTeams.has(team) || Boolean(fixtureHasTeamConflict(fixture, scheduled, slot));
+    });
+  }
+
+  function prefersFreshTeams(fixture, previousSlotTeams) {
+    return !teamsForFixture(fixture).some(function (team) { return previousSlotTeams.has(team); });
+  }
+
+  function scheduleFixtures(fixtures, options) {
+    var settings = options.settings || {};
+    var venues = normalizeVenues(options.venues || [], settings);
+    var blockedWindows = options.blockedWindows || [];
+    var remaining = fixtures.slice();
+    var scheduled = (options.existingFixtures || []).slice();
+    var placed = [];
+    var slot = parseMinutes(options.startSlot, 0);
+    var safety = 0;
+
+    while (remaining.length > 0 && safety < 10000) {
+      var busyTeams = new Set();
+      var previousSlotTeams = new Set();
+      var currentPlaced = [];
+
+      scheduled.forEach(function (fixture) {
+        if (fixture.slot === slot) {
+          teamsForFixture(fixture).forEach(function (team) { busyTeams.add(team); });
+        }
+        if (fixture.slot === slot - 1) {
+          teamsForFixture(fixture).forEach(function (team) { previousSlotTeams.add(team); });
+        }
       });
+
+      venues.forEach(function (venue) {
+        var candidates = [];
+        remaining.forEach(function (fixture, index) {
+          if (canPlaceFixture(fixture, venue.id, slot, scheduled.concat(currentPlaced), blockedWindows, busyTeams)) {
+            candidates.push({ fixture: fixture, index: index });
+          }
+        });
+        if (!candidates.length) return;
+
+        var selected = candidates.find(function (candidate) {
+          return prefersFreshTeams(candidate.fixture, previousSlotTeams);
+        }) || candidates[0];
+        var fixture = Object.assign({}, selected.fixture, {
+          venueId: venue.id,
+          venueName: venue.name,
+          venueIndex: venue.index,
+          slot: slot,
+          startsAt: startsAtForSlot(settings, slot)
+        });
+
+        remaining.splice(selected.index, 1);
+        teamsForFixture(fixture).forEach(function (team) { busyTeams.add(team); });
+        currentPlaced.push(fixture);
+        placed.push(fixture);
+      });
+
+      scheduled = scheduled.concat(currentPlaced);
+      slot++;
+      safety++;
     }
-    return interleaved;
+
+    return placed;
+  }
+
+  function seedPlaceholder(group, seed) {
+    return {
+      groupId: group.id,
+      groupName: group.name,
+      seed: seed,
+      label: group.name + ' Seed ' + seed
+    };
+  }
+
+  function buildOpeningSeeds(groups, advance) {
+    var seeds = [];
+    groups.forEach(function (group) {
+      for (var seed = 1; seed <= advance; seed++) {
+        seeds.push(seedPlaceholder(group, seed));
+      }
+    });
+    return seeds;
+  }
+
+  function buildOpeningPairs(groups, advance) {
+    if (groups.length === 2 && advance === 2) {
+      return [
+        [seedPlaceholder(groups[0], 1), seedPlaceholder(groups[1], 2)],
+        [seedPlaceholder(groups[1], 1), seedPlaceholder(groups[0], 2)]
+      ];
+    }
+
+    var seeds = buildOpeningSeeds(groups, advance);
+    var pairs = [];
+    for (var i = 0; i < Math.ceil(seeds.length / 2); i++) {
+      pairs.push([seeds[i], seeds[seeds.length - 1 - i] || null]);
+    }
+    return pairs;
+  }
+
+  function sourcePlaceholder(fixture) {
+    return {
+      sourceFixtureId: fixture.id,
+      label: 'Winner of ' + fixture.id
+    };
+  }
+
+  function buildPlayoffFixtures(options) {
+    var divisionId = options.divisionId || 'division';
+    var groups = normalizeGroups(options.groups || []);
+    var advance = ADV[(options.settings || {}).playoffFormat] || 2;
+    var fixtures = [];
+    var openingPairs = buildOpeningPairs(groups, advance);
+    var currentRound = [];
+    var roundIndex = 0;
+
+    openingPairs.forEach(function (pair, mi) {
+      var fixture = {
+        id: divisionId + '-playoff-' + fixtures.length,
+        divisionId: divisionId,
+        phase: 'playoff',
+        roundIndex: roundIndex,
+        roundName: openingPairs.length === 1 ? 'Final' : roundName(roundIndex, Math.ceil(Math.log2(Math.max(2, openingPairs.length * 2)))),
+        matchIndex: mi,
+        seedA: pair[0],
+        seedB: pair[1],
+        scoreA: null,
+        scoreB: null
+      };
+      fixtures.push(fixture);
+      currentRound.push(fixture);
+    });
+
+    while (currentRound.length > 1) {
+      roundIndex++;
+      var nextRound = [];
+      for (var i = 0; i < currentRound.length; i += 2) {
+        var nextFixture = {
+          id: divisionId + '-playoff-' + fixtures.length,
+          divisionId: divisionId,
+          phase: 'playoff',
+          roundIndex: roundIndex,
+          roundName: currentRound.length <= 2 ? 'Final' : roundName(roundIndex, 3),
+          matchIndex: nextRound.length,
+          seedA: sourcePlaceholder(currentRound[i]),
+          seedB: currentRound[i + 1] ? sourcePlaceholder(currentRound[i + 1]) : null,
+          scoreA: null,
+          scoreB: null
+        };
+        fixtures.push(nextFixture);
+        nextRound.push(nextFixture);
+      }
+      currentRound = nextRound;
+    }
+
+    return fixtures;
+  }
+
+  function maxSlot(fixtures) {
+    if (!fixtures.length) return -1;
+    return Math.max.apply(null, fixtures.map(function (fixture) { return fixture.slot; }));
+  }
+
+  function schedulePlayoffFixtures(fixtures, options) {
+    var scheduled = [];
+    var existingFixtures = (options.existingFixtures || []).slice();
+    var slot = options.startSlot || 0;
+    var roundIndexes = Array.from(new Set(fixtures.map(function (fixture) { return fixture.roundIndex; }))).sort(function (a, b) { return a - b; });
+
+    roundIndexes.forEach(function (roundIndex) {
+      var roundFixtures = fixtures.filter(function (fixture) { return fixture.roundIndex === roundIndex; });
+      var placed = scheduleFixtures(roundFixtures, Object.assign({}, options, {
+        startSlot: slot,
+        existingFixtures: existingFixtures
+      }));
+      scheduled = scheduled.concat(placed);
+      existingFixtures = existingFixtures.concat(placed);
+      slot = maxSlot(placed) + 1;
+    });
+
+    return scheduled;
+  }
+
+  function generateDivisionSchedule(input) {
+    var settings = input.settings || {};
+    var divisionId = input.divisionId || 'division';
+    var groups = normalizeGroups(input.groups || []);
+    var venues = normalizeVenues(input.venues || [], settings);
+    var groupFixtures = generateRoundRobinFixtures(divisionId, groups);
+    var scheduledGroups = scheduleFixtures(groupFixtures, {
+      venues: venues,
+      settings: settings,
+      blockedWindows: input.blockedWindows || [],
+      startSlot: 0
+    });
+    var groupBlockMinutes = getGameBlockMinutes(settings);
+    var breakSlots = Math.ceil(parseMinutes(settings.breakBeforePlayoffs, 0) / groupBlockMinutes);
+    var playoffFixtures = buildPlayoffFixtures({
+      divisionId: divisionId,
+      groups: groups,
+      settings: settings
+    });
+    var playoffStartSlot = Math.max(0, maxSlot(scheduledGroups) + 1 + breakSlots);
+    var scheduledPlayoffs = schedulePlayoffFixtures(playoffFixtures, {
+      venues: venues,
+      settings: settings,
+      blockedWindows: input.blockedWindows || [],
+      startSlot: playoffStartSlot,
+      existingFixtures: scheduledGroups
+    });
+    var fixtures = scheduledGroups.concat(scheduledPlayoffs);
+
+    return {
+      divisionId: divisionId,
+      settings: Object.assign({}, settings),
+      venues: venues,
+      groups: groups,
+      fixtures: fixtures,
+      summary: {
+        groupFixtures: scheduledGroups.length,
+        playoffFixtures: scheduledPlayoffs.length,
+        totalFixtures: fixtures.length,
+        totalSlots: getTimeSlots(fixtures).length,
+        gameBlockMinutes: groupBlockMinutes,
+        breakSlotsBeforePlayoffs: breakSlots
+      }
+    };
   }
 
   function assignRefs(schedule, groups) {
@@ -100,64 +403,42 @@
     });
   }
 
-  function addTimes(schedule, settings) {
-    var parts = String(settings.startTime || '10:00').split(':').map(Number);
-    var sh = Number.isFinite(parts[0]) ? parts[0] : 10;
-    var sm = Number.isFinite(parts[1]) ? parts[1] : 0;
-    var dur = (parseInt(settings.gameDuration, 10) || 25) + (parseInt(settings.breakBetween, 10) || 0);
-
-    schedule.forEach(function (game) {
-      var tot = sh * 60 + sm + game.slot * dur;
-      game.time = String(Math.floor(tot / 60) % 24).padStart(2, '0') + ':' + String(tot % 60).padStart(2, '0');
-    });
+  function adaptFixtureToGame(fixture) {
+    return {
+      id: fixture.id,
+      gi: fixture.groupIndex,
+      gName: fixture.groupName,
+      tA: fixture.teamA,
+      tB: fixture.teamB,
+      field: fixture.venueIndex,
+      slot: fixture.slot,
+      time: fixture.startsAt,
+      scoreA: fixture.scoreA,
+      scoreB: fixture.scoreB,
+      ref: ''
+    };
   }
 
   function generateSchedule(input) {
     var settings = input.settings || {};
-    var groups = (input.groups || []).map(function (group, gi) {
+    var requestedFields = Math.max(1, Math.min(8, parseMinutes(settings.numFields, 1)));
+    var groups = normalizeGroups(input.groups || []).map(function (group) {
       return {
-        name: group.name || 'Group ' + GL[gi],
-        teams: group.teams || []
+        id: group.id,
+        name: group.name,
+        teams: group.teams
       };
     });
-    var requestedFields = Math.max(1, Math.min(8, parseInt(settings.numFields, 10) || 1));
-    var allGames = generateRoundRobinGames(groups);
-    var remaining = interleaveGroups(groups, allGames);
-    var schedule = [];
-    var slot = 0;
+    var result = generateDivisionSchedule(Object.assign({}, input, {
+      divisionId: input.divisionId || 'division',
+      settings: settings,
+      groups: groups,
+      venues: input.venues || normalizeVenues([], settings)
+    }));
+    var schedule = result.fixtures.filter(function (fixture) {
+      return fixture.phase === 'group';
+    }).map(adaptFixtureToGame);
 
-    while (remaining.length > 0) {
-      var busy = new Set();
-      var placed = 0;
-
-      for (var f = 0; f < requestedFields; f++) {
-        var idx = remaining.findIndex(function (game) {
-          return !busy.has(game.tA) && !busy.has(game.tB);
-        });
-        if (idx === -1) break;
-
-        var g = remaining.splice(idx, 1)[0];
-        busy.add(g.tA);
-        busy.add(g.tB);
-        schedule.push({
-          id: 'g' + g.gi + '_' + schedule.length,
-          gi: g.gi,
-          gName: g.gName,
-          tA: g.tA,
-          tB: g.tB,
-          field: f,
-          slot: slot,
-          scoreA: null,
-          scoreB: null
-        });
-        placed++;
-      }
-
-      if (placed > 0) slot++;
-      else slot++;
-    }
-
-    addTimes(schedule, settings);
     assignRefs(schedule, groups);
 
     var activeFields = getActiveFieldCount(schedule);
@@ -181,16 +462,82 @@
         totalSlots: slots.length,
         requestedFields: requestedFields,
         activeFields: activeFields,
-        gameBlockMinutes: (parseInt(settings.gameDuration, 10) || 25) + (parseInt(settings.breakBetween, 10) || 0),
+        gameBlockMinutes: getGameBlockMinutes(settings),
         note: note
       }
     };
+  }
+
+  function makeResult(options, props) {
+    var result = {};
+    if (options && typeof options.constructor === 'function') {
+      try {
+        result = new options.constructor();
+      } catch (error) {
+        result = {};
+      }
+    }
+    Object.keys(props).forEach(function (key) {
+      result[key] = props[key];
+    });
+    return result;
+  }
+
+  function validateFixtureMove(options) {
+    var moving = (options.fixtures || []).find(function (fixture) {
+      return fixture.id === options.fixtureId;
+    });
+    if (!moving) return makeResult(options, { ok: false, reason: 'Fixture not found.' });
+
+    var block = isBlocked(options.targetVenueId, options.targetSlot, options.blockedWindows || []);
+    if (block) return makeResult(options, { ok: false, reason: 'Field/court is blocked: ' + (block.reason || 'Unavailable') + '.' });
+
+    var venueConflict = (options.fixtures || []).find(function (fixture) {
+      return fixture.id !== moving.id && fixture.venueId === options.targetVenueId && fixture.slot === options.targetSlot;
+    });
+    if (venueConflict) return makeResult(options, { ok: false, reason: 'Field/court already has a game at this time.' });
+
+    var movingTeams = new Set(teamsForFixture(moving));
+    var teamConflict = (options.fixtures || []).find(function (fixture) {
+      if (fixture.id === moving.id || fixture.slot !== options.targetSlot) return false;
+      return teamsForFixture(fixture).some(function (team) { return movingTeams.has(team); });
+    });
+    if (teamConflict) {
+      var team = teamsForFixture(teamConflict).find(function (name) { return movingTeams.has(name); });
+      return makeResult(options, { ok: false, reason: team + ' already plays at this time.' });
+    }
+
+    return makeResult(options, { ok: true });
+  }
+
+  function moveFixture(options) {
+    var validation = validateFixtureMove(options);
+    if (!validation.ok) return validation;
+
+    var venues = options.venues || [];
+    var targetVenue = venues.find(function (venue) { return venue.id === options.targetVenueId; });
+    var fixtures = (options.fixtures || []).map(function (fixture) {
+      if (fixture.id !== options.fixtureId) return fixture;
+      var moved = Object.assign({}, fixture, {
+        venueId: options.targetVenueId,
+        slot: options.targetSlot
+      });
+      if (targetVenue) moved.venueName = targetVenue.name;
+      if (options.settings) moved.startsAt = startsAtForSlot(options.settings, options.targetSlot);
+      return moved;
+    });
+
+    return makeResult(options, { ok: true, fixtures: fixtures });
   }
 
   window.RHMTournamentEngine = {
     generateSchedule: generateSchedule,
     getActiveFieldCount: getActiveFieldCount,
     getTimeSlots: getTimeSlots,
-    buildPlayoffs: buildPlayoffs
+    buildPlayoffs: buildPlayoffs,
+    generateDivisionSchedule: generateDivisionSchedule,
+    validateFixtureMove: validateFixtureMove,
+    moveFixture: moveFixture,
+    buildPlayoffFixtures: buildPlayoffFixtures
   };
 })(window);
