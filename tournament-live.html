@@ -62,6 +62,22 @@
     }
     .t-meta { font-size: 13px; color: var(--muted); }
 
+    /* ── TABS ── */
+    .tab-nav {
+      display: flex; gap: 0; border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem; overflow-x: auto;
+    }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--muted); font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.05rem; letter-spacing: 0.08em; padding: 0.85rem 1.4rem;
+      cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn:hover { color: var(--white); }
+    .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+    .live-panel { display: none; }
+    .live-panel.active { display: block; }
+
     /* ── SECTION LABEL ── */
     .sec-label {
       font-family: 'Bebas Neue', sans-serif;
@@ -187,16 +203,16 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/supabase-config.js"></script>
+<script src="assets/js/tournament-standings.js"></script>
 <script src="assets/js/tournament-engine.js"></script>
 <script src="assets/js/tournament-store.js"></script>
 <script>
-const LS = 'RHM_tournament';
 const GL = ['A','B','C','D'];
 const ADV = { top1:1, top2:2, top4:4 };
 let lastUpdated = null;
 
 async function loadData() {
-  return await window.RHMTournamentStore.loadTournamentState();
+  return await window.RHMTournamentStore.loadPublicTournamentState();
 }
 
 async function render() {
@@ -204,8 +220,10 @@ async function render() {
   const main = document.getElementById('main-content');
   const badge = document.getElementById('live-badge');
   const footer = document.getElementById('live-footer');
+  const div = getActiveDivision(S);
+  const fixtures = div.fixtures || [];
 
-  if (!S || !S.schedule || !S.schedule.length) {
+  if (!S || !fixtures.length) {
     badge.style.display = 'none';
     main.innerHTML = '<div class="notice"><strong>No Tournament Active</strong>Set up a tournament in the admin panel to see live results here.</div>';
     footer.innerHTML = '';
@@ -217,30 +235,266 @@ async function render() {
   document.getElementById('refresh-label').textContent = 'Updated ' + lastUpdated.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
 
   let html = '';
+  const display = getDisplaySettings(S, div);
+  const standings = computeDivisionStandings(div);
+  const advance = ADV[(div.settings || {}).playoffFormat] || 2;
+  const seeds = projectDivisionSeeds(div, standings);
 
   // ── Hero
   html += `<div class="t-hero">
-    <div class="t-sport-tag">${eh(S.settings.sport)}</div>
-    <div class="t-name">${eh(S.settings.name || 'RHM Tournament')}</div>
+    <div class="t-sport-tag">${eh(display.sport)}</div>
+    <div class="t-name">${eh(display.name || 'RHM Tournament')}</div>
     <div class="t-meta">Live results · Auto-refreshes every 30 seconds</div>
   </div>`;
 
-  // ── Standings
-  const standings = computeStandings(S);
-  const advance = ADV[S.settings.playoffFormat] || 2;
+  html += `
+  <div class="tab-nav" style="margin-top:1.5rem;">
+    <button class="tab-btn active" data-live-tab="schedule" onclick="switchLiveTab('schedule')">Schedule</button>
+    <button class="tab-btn" data-live-tab="standings" onclick="switchLiveTab('standings')">Standings</button>
+    <button class="tab-btn" data-live-tab="bracket" onclick="switchLiveTab('bracket')">Bracket</button>
+  </div>
+`;
 
-  html += '<div class="sec-wrap"><div class="sec-label">Group Standings</div><div class="standings-grid">';
+  html += `<div class="live-panel active" id="live-panel-schedule">${renderSchedulePanel(div, fixtures, seeds)}</div>`;
+  html += `<div class="live-panel" id="live-panel-standings">${renderStandingsPanel(standings, advance)}</div>`;
+  html += '<div class="live-panel" id="live-panel-bracket"><div class="sec-wrap"><div class="sec-label">Playoff Bracket</div><div id="bracket-area" class="bracket-outer"></div></div></div>';
+
+  main.innerHTML = html;
+  renderBracket(div, seeds);
+
+  footer.innerHTML = `Auto-refreshes every 30 seconds &nbsp;·&nbsp; Last updated: ${lastUpdated.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+}
+
+function switchLiveTab(tab) {
+  document.querySelectorAll('[data-live-tab]').forEach(button => {
+    button.classList.toggle('active', button.dataset.liveTab === tab);
+  });
+  document.querySelectorAll('.live-panel').forEach(panel => {
+    panel.classList.toggle('active', panel.id === 'live-panel-' + tab);
+  });
+}
+
+function getActiveDivision(S) {
+  if (!S) return { settings:{}, groups:[], venues:[], fixtures:[], seedOverrides:[] };
+  if (S.divisions && S.divisions.length) return normalizeDivision(S.divisions[0], S);
+  return deriveLegacyDivision(S);
+}
+
+function normalizeDivision(raw, S) {
+  const div = Object.assign({}, raw || {});
+  div.settings = Object.assign({}, div.settings || {});
+  div.groups = normalizeGroups(div.groups || []);
+  div.fixtures = normalizeFixtures(div.fixtures || []);
+  div.venues = deriveVenues(div, div.fixtures, S);
+  div.seedOverrides = div.seedOverrides || [];
+  return div;
+}
+
+function deriveLegacyDivision(S) {
+  const settings = Object.assign({
+    playoffFormat: 'top2',
+    sport: 'Flag Football'
+  }, S.settings || {});
+  const groups = normalizeGroups(S.groups || []);
+  const venues = deriveLegacyVenues(S, settings);
+  const groupFixtures = (S.schedule || []).map(g => {
+    const groupIndex = Number.isFinite(Number(g.gi)) ? Number(g.gi) : 0;
+    const fieldIndex = Number.isFinite(Number(g.field)) ? Number(g.field) : 0;
+    return {
+      id: g.id || 'legacy-group-' + groupIndex + '-' + (g.slot || 0) + '-' + fieldIndex,
+      divisionId: 'division-main',
+      phase: 'group',
+      groupId: groups[groupIndex]?.id || 'group-' + String(GL[groupIndex] || groupIndex + 1).toLowerCase(),
+      groupName: g.gName || groups[groupIndex]?.name || 'Group ' + (GL[groupIndex] || groupIndex + 1),
+      teamA: g.tA,
+      teamB: g.tB,
+      venueId: venues[fieldIndex]?.id || 'venue-' + (fieldIndex + 1),
+      venueName: venues[fieldIndex]?.name || 'Field ' + (fieldIndex + 1),
+      venueIndex: fieldIndex,
+      slot: g.slot,
+      startsAt: g.time || g.startsAt,
+      scoreA: g.scoreA ?? null,
+      scoreB: g.scoreB ?? null,
+      ref: g.ref || '',
+      status: isScored(g) ? 'final' : 'scheduled'
+    };
+  });
+  const playoffFixtures = deriveLegacyPlayoffFixtures(S, groups, settings);
+
+  return {
+    id: 'division-main',
+    name: 'Main Division',
+    sport: settings.sport,
+    settings: settings,
+    groups: groups,
+    venues: venues,
+    fixtures: groupFixtures.concat(playoffFixtures),
+    seedOverrides: []
+  };
+}
+
+function deriveLegacyVenues(S, settings) {
+  const schedule = S.schedule || [];
+  const maxField = schedule.length ? Math.max.apply(null, schedule.map(g => Number.isFinite(Number(g.field)) ? Number(g.field) : 0)) : -1;
+  const total = Math.max(1, maxField + 1, parseInt(settings.effectiveFields || settings.numFields, 10) || 1);
+  return Array.from({ length: total }, (_, index) => ({
+    id: 'venue-' + (index + 1),
+    name: venueDefaultName(settings.sport, index),
+    index: index
+  }));
+}
+
+function deriveLegacyPlayoffFixtures(S, groups, settings) {
+  if (!(S.schedule || []).length && !(S.playoffs || []).length) return [];
+  if (window.RHMTournamentEngine && typeof window.RHMTournamentEngine.buildPlayoffFixtures === 'function') {
+    return window.RHMTournamentEngine.buildPlayoffFixtures({
+      divisionId: 'division-main',
+      groups: groups,
+      settings: settings
+    });
+  }
+  return [];
+}
+
+function normalizeGroups(groups) {
+  return (groups || []).map((group, index) => ({
+    id: group.id || 'group-' + String(GL[index] || index + 1).toLowerCase(),
+    name: group.name || 'Group ' + (GL[index] || index + 1),
+    teams: (group.teams || []).map(team => String(team || '').trim()).filter(Boolean)
+  }));
+}
+
+function normalizeFixtures(fixtures) {
+  return (fixtures || []).map(fixture => Object.assign({}, fixture, {
+    scoreA: fixture.scoreA ?? null,
+    scoreB: fixture.scoreB ?? null
+  }));
+}
+
+function deriveVenues(div, fixtures, S) {
+  if (div.venues && div.venues.length) {
+    return div.venues.map((venue, index) => ({
+      id: venue.id || 'venue-' + (index + 1),
+      name: venue.name || venueDefaultName(div.sport || S?.settings?.sport, index),
+      index: Number.isFinite(Number(venue.index)) ? Number(venue.index) : index
+    }));
+  }
+
+  const seen = {};
+  (fixtures || []).forEach(fixture => {
+    const id = fixture.venueId || (Number.isFinite(Number(fixture.venueIndex)) ? 'venue-' + (Number(fixture.venueIndex) + 1) : '');
+    if (!id || seen[id]) return;
+    seen[id] = {
+      id: id,
+      name: fixture.venueName || id.replace(/^venue-/, 'Field '),
+      index: Number.isFinite(Number(fixture.venueIndex)) ? Number(fixture.venueIndex) : Object.keys(seen).length
+    };
+  });
+
+  const venues = Object.keys(seen).map(id => seen[id]).sort((a,b) => a.index - b.index);
+  if (venues.length) return venues;
+
+  const settings = div.settings || {};
+  const total = Math.max(1, parseInt(settings.effectiveFields || settings.numFields, 10) || 1);
+  return Array.from({ length: total }, (_, index) => ({
+    id: 'venue-' + (index + 1),
+    name: venueDefaultName(div.sport || S?.settings?.sport, index),
+    index: index
+  }));
+}
+
+function venueDefaultName(sport, index) {
+  return (String(sport || '').includes('Basketball') ? 'Court ' : 'Field ') + (index + 1);
+}
+
+function getDisplaySettings(S, div) {
+  const global = S.settings || {};
+  const settings = div.settings || {};
+  return {
+    name: global.name || settings.name || div.name || 'RHM Tournament',
+    sport: global.sport || div.sport || settings.sport || 'Tournament'
+  };
+}
+
+function renderSchedulePanel(div, fixtures, seeds) {
+  const scheduledFixtures = fixtures.filter(hasScheduleSlot);
+  if (!scheduledFixtures.length) {
+    return '<div class="sec-wrap"><div class="sec-label">Schedule</div><div class="notice">Schedule times are not available yet.</div></div>';
+  }
+
+  const slots = [...new Set(scheduledFixtures.map(g => g.slot))].sort((a,b)=>a-b);
+  const timeOf = {};
+  scheduledFixtures.forEach(g => { timeOf[g.slot] = g.startsAt || g.time || ('Slot ' + (Number(g.slot) + 1)); });
+  const venues = deriveVenues(div, scheduledFixtures, {});
+
+  let html = '<div class="sec-wrap"><div class="sec-label">Schedule</div><div class="sched-wrap"><table class="sched-table"><thead><tr><th>Venue</th>';
+  slots.forEach(s => { html += `<th>${eh(timeOf[s])}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  venues.forEach(venue => {
+    html += `<tr><td>${eh(venue.name)}</td>`;
+    slots.forEach(s => {
+      const g = scheduledFixtures.find(x => fixtureVenueId(x) === venue.id && x.slot === s);
+      if (!g) { html += '<td class="empty-cell"></td>'; return; }
+      html += `<td>${renderGameCard(g, seeds, fixtures)}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div></div>';
+  return html;
+}
+
+function renderGameCard(fixture, seeds, fixtures) {
+  const scored = isScored(fixture);
+  const teamA = fixtureTeamLabel(fixture, 'A', seeds, fixtures);
+  const teamB = fixtureTeamLabel(fixture, 'B', seeds, fixtures);
+  const phase = fixturePhaseLabel(fixture);
+
+  if (scored) {
+    const scoreA = Number(fixture.scoreA);
+    const scoreB = Number(fixture.scoreB);
+    const aWin = scoreA > scoreB || fixture.winner === teamA;
+    const bWin = scoreB > scoreA || fixture.winner === teamB;
+    return `
+      <div class="game-card scored">
+        <div class="gc-group">${eh(phase)}</div>
+        <div class="gc-score-line">
+          <span class="${aWin?'winner-sc':''}">${eh(teamA)} ${eh(scoreA)}</span>
+          <span style="color:#444;margin:0 4px">—</span>
+          <span class="${bWin?'winner-sc':''}">${eh(scoreB)} ${eh(teamB)}</span>
+        </div>
+        <div class="gc-ref">${renderFixtureMeta(fixture)}</div>
+      </div>`;
+  }
+
+  return `
+    <div class="game-card">
+      <div class="gc-group">${eh(phase)}</div>
+      <div class="gc-teams">${eh(teamA)} vs ${eh(teamB)}</div>
+      <div class="gc-ref">${renderFixtureMeta(fixture)}</div>
+      <div class="score-tbd">Score pending</div>
+    </div>`;
+}
+
+function renderFixtureMeta(fixture) {
+  if (fixture.phase === 'group') return 'Ref: ' + eh(fixture.ref || '-');
+  return eh(fixture.roundName || 'Playoff');
+}
+
+function renderStandingsPanel(standings, advance) {
+  let html = '<div class="sec-wrap"><div class="sec-label">Group Standings</div><div class="standings-grid">';
   standings.forEach(gs => {
     html += `<div class="stg-block">
-      <div class="stg-name">Group ${gs.label}</div>
+      <div class="stg-name">${eh(gs.groupName)}</div>
       <table class="stg-tbl">
-        <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>+/-</th></tr></thead>
+        <thead><tr><th>#</th><th>Team</th><th>Pts</th><th>W</th><th>D</th><th>L</th><th>PF</th><th>PA</th><th>+/-</th></tr></thead>
         <tbody>
           ${gs.rows.map((r,ri) => `
             <tr class="${ri<advance?'adv':''}">
-              <td><span class="stg-rank">${ri+1}</span></td>
+              <td><span class="stg-rank">${r.rank || ri+1}</span></td>
               <td>${eh(r.team)}</td>
-              <td>${r.W}</td><td>${r.L}</td><td>${r.PF}</td><td>${r.PA}</td>
+              <td>${r.points}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.pf}</td><td>${r.pa}</td>
               <td class="${r.diff>0?'diff-p':r.diff<0?'diff-n':''}">${r.diff>0?'+':''}${r.diff}</td>
             </tr>`).join('')}
         </tbody>
@@ -248,163 +502,134 @@ async function render() {
     </div>`;
   });
   html += '</div></div>';
-
-  // ── Schedule
-  const slots = [...new Set(S.schedule.map(g => g.slot))].sort((a,b)=>a-b);
-  const timeOf = {};
-  S.schedule.forEach(g => { timeOf[g.slot] = g.time; });
-  const nf = window.RHMTournamentEngine.getActiveFieldCount(S.schedule) || S.settings.numFields;
-
-  html += '<div class="sec-wrap"><div class="sec-label">Schedule</div><div class="sched-wrap"><table class="sched-table"><thead><tr><th>Field</th>';
-  slots.forEach(s => { html += `<th>${timeOf[s]}</th>`; });
-  html += '</tr></thead><tbody>';
-
-  for (let f = 0; f < nf; f++) {
-    html += `<tr><td>Field ${f+1}</td>`;
-    slots.forEach(s => {
-      const g = S.schedule.find(x => x.field === f && x.slot === s);
-      if (!g) { html += '<td class="empty-cell"></td>'; return; }
-      const scored = g.scoreA !== null && g.scoreB !== null;
-      if (scored) {
-        const aWin = g.scoreA > g.scoreB, bWin = g.scoreB > g.scoreA;
-        html += `
-          <td>
-            <div class="game-card scored">
-              <div class="gc-group">${eh(g.gName)}</div>
-              <div class="gc-score-line">
-                <span class="${aWin?'winner-sc':''}">${eh(g.tA)} ${g.scoreA}</span>
-                <span style="color:#444;margin:0 4px">—</span>
-                <span class="${bWin?'winner-sc':''}">${g.scoreB} ${eh(g.tB)}</span>
-              </div>
-              <div class="gc-ref">Ref: ${eh(g.ref)}</div>
-            </div>
-          </td>`;
-      } else {
-        html += `
-          <td>
-            <div class="game-card">
-              <div class="gc-group">${eh(g.gName)}</div>
-              <div class="gc-teams">${eh(g.tA)} vs ${eh(g.tB)}</div>
-              <div class="gc-ref">Ref: ${eh(g.ref)}</div>
-              <div class="score-tbd">Score pending</div>
-            </div>
-          </td>`;
-      }
-    });
-    html += '</tr>';
-  }
-  html += '</tbody></table></div></div>';
-
-  // ── Bracket section (placeholder — bracket rendered via JS after innerHTML)
-  html += '<div class="sec-wrap"><div class="sec-label">Playoff Bracket</div><div id="bracket-area" class="bracket-outer"></div></div>';
-
-  main.innerHTML = html;
-
-  // ── Bracket visual
-  renderBracket(S, standings, advance);
-
-  footer.innerHTML = `Auto-refreshes every 30 seconds &nbsp;·&nbsp; Last updated: ${lastUpdated.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+  return standings.length ? html : '<div class="sec-wrap"><div class="sec-label">Group Standings</div><div class="notice">Standings are not available yet.</div></div>';
 }
 
-function computeStandings(S) {
-  return S.groups.map((grp, gi) => {
-    const teams = grp.teams.filter(t => t.trim());
-    const st = {};
-    teams.forEach(t => { st[t] = { W:0, L:0, D:0, PF:0, PA:0 }; });
-    S.schedule.filter(g => g.gi === gi && g.scoreA !== null && g.scoreB !== null).forEach(g => {
-      if (!st[g.tA] || !st[g.tB]) return;
-      st[g.tA].PF += g.scoreA; st[g.tA].PA += g.scoreB;
-      st[g.tB].PF += g.scoreB; st[g.tB].PA += g.scoreA;
-      if (g.scoreA > g.scoreB) { st[g.tA].W++; st[g.tB].L++; }
-      else if (g.scoreB > g.scoreA) { st[g.tB].W++; st[g.tA].L++; }
-      else { st[g.tA].D++; st[g.tB].D++; }
-    });
-    const rows = teams.map(t => ({ team:t, ...st[t], diff:st[t].PF-st[t].PA }));
-    rows.sort((a,b) => b.W-a.W || b.diff-a.diff || b.PF-a.PF);
-    return { label: GL[gi], rows };
+function computeDivisionStandings(div) {
+  return window.RHMTournamentStandings.computeStandings({
+    groups: div.groups || [],
+    fixtures: div.fixtures || [],
+    rules: div.settings || {}
   });
 }
 
-function seedMatchups(seeds) {
-  const byGrp = {};
-  seeds.forEach(s => { (byGrp[s.gi] = byGrp[s.gi] || []).push(s); });
-  const keys = Object.keys(byGrp).map(Number).sort();
-  const pairs = [];
-  if (keys.length >= 2) {
-    for (let i = 0; i < keys.length; i += 2) {
-      const gA = byGrp[keys[i]] || [], gB = byGrp[keys[i+1]] || [];
-      if (gA[0] && gB[1]) pairs.push([gA[0].team, gB[1].team]);
-      if (gB[0] && gA[1]) pairs.push([gB[0].team, gA[1].team]);
-    }
-  } else {
-    for (let i = 0; i < seeds.length; i += 2) pairs.push([seeds[i]?.team, seeds[i+1]?.team]);
-  }
-  return pairs;
+function projectDivisionSeeds(div, standings) {
+  const advance = ADV[(div.settings || {}).playoffFormat] || 2;
+  return window.RHMTournamentStandings.projectSeeds({
+    standings: standings || computeDivisionStandings(div),
+    seedOverrides: div.seedOverrides || [],
+    advancePerGroup: advance
+  });
 }
 
-function renderBracket(S, standings, advance) {
+function hasScheduleSlot(fixture) {
+  return fixture && fixture.slot !== undefined && fixture.slot !== null && fixture.slot !== '';
+}
+
+function fixtureVenueId(fixture) {
+  if (fixture.venueId) return fixture.venueId;
+  if (Number.isFinite(Number(fixture.venueIndex))) return 'venue-' + (Number(fixture.venueIndex) + 1);
+  return 'venue-1';
+}
+
+function isScored(fixture) {
+  return fixture && fixture.scoreA !== null && fixture.scoreA !== '' && fixture.scoreB !== null && fixture.scoreB !== '';
+}
+
+function fixturePhaseLabel(fixture) {
+  if (fixture.phase === 'playoff') return fixture.roundName || 'Playoff';
+  return fixture.groupName || 'Group';
+}
+
+function resolveSeedSide(side, seeds, fixtures, seen) {
+  if (!side) return 'TBD';
+  if (side.sourceFixtureId) {
+    const source = (fixtures || []).find(fixture => fixture.id === side.sourceFixtureId);
+    return fixtureWinner(source, seeds, fixtures, seen) || side.label || 'TBD';
+  }
+  const seed = (seeds || []).find(item => item.groupId === side.groupId && item.seed === side.seed);
+  return seed?.team || side.label || 'TBD';
+}
+
+function fixtureTeamLabel(fixture, side, seeds, fixtures, seen) {
+  if (!fixture) return 'TBD';
+  const key = side === 'A' ? 'teamA' : 'teamB';
+  const seedKey = side === 'A' ? 'seedA' : 'seedB';
+  return fixture[key] || resolveSeedSide(fixture[seedKey], seeds, fixtures, seen);
+}
+
+function fixtureWinner(fixture, seeds, fixtures, seen) {
+  if (!fixture) return null;
+  const visited = seen || {};
+  if (visited[fixture.id]) return fixture.winner || null;
+  visited[fixture.id] = true;
+  if (fixture.winner) return fixture.winner;
+  if (!isScored(fixture)) return null;
+  const scoreA = Number(fixture.scoreA);
+  const scoreB = Number(fixture.scoreB);
+  if (scoreA === scoreB) return null;
+  return fixtureTeamLabel(fixture, scoreA > scoreB ? 'A' : 'B', seeds, fixtures, visited);
+}
+
+function renderBracket(div, seeds) {
   const container = document.getElementById('bracket-area');
-  if (!container || !S.playoffs || !S.playoffs.length) {
-    if (container) container.innerHTML = '<div class="notice" style="padding:1.5rem;border-style:dashed">Playoffs begin after group stage.</div>';
+  const playoffs = (div.fixtures || []).filter(fixture => fixture.phase === 'playoff');
+  if (!container) return;
+  if (!seeds.length || !playoffs.length) {
+    container.innerHTML = '<div class="notice" style="padding:1.5rem;border-style:dashed">Playoffs begin after group stage.</div>';
     return;
   }
 
-  const seeds = [];
-  standings.forEach((gs, gi) => {
-    gs.rows.slice(0, advance).forEach((r, si) => { seeds.push({ team:r.team, gi, seed:si }); });
-  });
-
-  const pairs = seedMatchups(seeds);
-  if (!pairs.length) { container.innerHTML = '<div class="notice" style="padding:1.5rem">Bracket not yet available.</div>'; return; }
-
-  const r0 = pairs.map(([a,b]) => ({ tA:a||'TBD', tB:b||'TBD' }));
-  const rounds = [r0];
-  let prev = r0.length;
-  while (prev > 1) {
-    const next = Math.ceil(prev/2);
-    rounds.push(Array.from({length:next}, () => ({ tA:'TBD', tB:'TBD' })));
-    prev = next;
-  }
-
-  const labels = rounds.map((_,ri) => {
-    const t = rounds.length;
-    if (ri === t-1) return 'Final';
-    if (ri === t-2) return t > 2 ? 'Semifinals' : 'Final';
-    if (ri === t-3) return 'Quarterfinals';
-    return `Round ${ri+1}`;
-  });
-  if (rounds.length === 1) labels[0] = 'Final';
-
-  const totalSlots = rounds[0].length;
+  const byRound = {};
+  playoffs.forEach(fixture => { (byRound[fixture.roundIndex || 0] = byRound[fixture.roundIndex || 0] || []).push(fixture); });
+  const rounds = Object.keys(byRound).map(Number).sort((a,b)=>a-b).map(index => byRound[index].sort((a,b)=>(a.matchIndex||0)-(b.matchIndex||0)));
+  const totalSlots = Math.max.apply(null, rounds.map(round => round.length));
   const wrap = document.createElement('div');
   wrap.className = 'bracket-flex';
 
   rounds.forEach((matches, ri) => {
     const col = document.createElement('div');
     col.className = 'r-col';
-    col.innerHTML = `<div class="r-label">${labels[ri]}</div>`;
+    col.innerHTML = `<div class="r-label">${eh(matches[0]?.roundName || 'Round ' + (ri + 1))}</div>`;
     const mc = document.createElement('div');
     mc.className = 'r-matches';
     const flex = totalSlots / matches.length;
     matches.forEach(m => {
       const slot = document.createElement('div');
-      slot.className = 'b-slot'; slot.style.flex = flex;
+      slot.className = 'b-slot';
+      slot.style.flex = flex;
       const card = document.createElement('div');
       card.className = 'b-card';
-      [m.tA, m.tB].forEach(t => {
+      ['A','B'].forEach(side => {
+        const team = fixtureTeamLabel(m, side, seeds, div.fixtures || []);
         const row = document.createElement('div');
-        const tbd = t === 'TBD' || !t;
+        const tbd = !team || team === 'TBD';
+        const winner = fixtureWinner(m, seeds, div.fixtures || []) === team;
         row.className = 'b-team' + (tbd ? ' tbd' : '');
-        row.textContent = t || 'TBD';
+        if (winner) row.className += ' win';
+        const span = document.createElement('span');
+        span.textContent = team || 'TBD';
+        row.appendChild(span);
+        if (isScored(m)) {
+          const score = document.createElement('span');
+          score.className = 'b-sc';
+          score.textContent = side === 'A' ? m.scoreA : m.scoreB;
+          row.appendChild(score);
+        }
         card.appendChild(row);
       });
-      slot.appendChild(card); mc.appendChild(slot);
+      slot.appendChild(card);
+      mc.appendChild(slot);
     });
-    col.appendChild(mc); wrap.appendChild(col);
+    col.appendChild(mc);
+    wrap.appendChild(col);
+
     if (ri < rounds.length - 1) {
       const lc = document.createElement('div');
-      lc.className = 'lines-col'; lc.dataset.ri = ri;
-      lc.innerHTML = '<svg></svg>'; wrap.appendChild(lc);
+      lc.className = 'lines-col';
+      lc.dataset.ri = ri;
+      lc.innerHTML = '<svg></svg>';
+      wrap.appendChild(lc);
     }
   });
 
@@ -412,9 +637,12 @@ function renderBracket(S, standings, advance) {
   cc.className = 'champ-col';
   cc.innerHTML = `<div class="r-label">Champion</div>`;
   const cs = document.createElement('div');
-  cs.className = 'champ-slot'; cs.style.flex = totalSlots;
-  cs.innerHTML = `<div class="champ-card"><div class="champ-ico">🏆</div><div class="champ-lbl">Winner</div><div class="champ-nm">TBD</div></div>`;
-  cc.appendChild(cs); wrap.appendChild(cc);
+  cs.className = 'champ-slot';
+  cs.style.flex = totalSlots;
+  const finalFixture = playoffs.slice().sort((a,b)=>(b.roundIndex||0)-(a.roundIndex||0))[0];
+  cs.innerHTML = `<div class="champ-card"><div class="champ-lbl">Winner</div><div class="champ-nm">${eh(fixtureWinner(finalFixture, seeds, div.fixtures || []) || 'TBD')}</div></div>`;
+  cc.appendChild(cs);
+  wrap.appendChild(cc);
 
   container.innerHTML = '';
   container.appendChild(wrap);
@@ -454,8 +682,7 @@ function renderBracket(S, standings, advance) {
     });
   });
 }
-
-function eh(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function eh(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ── INIT + AUTO-REFRESH ──
 render().catch(error => console.error(error));
