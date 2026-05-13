@@ -552,13 +552,53 @@ function migrateLoadedState(state) {
   return migrated;
 }
 
+function syncLegacyTournamentFields() {
+  const div = activeDivision();
+  const settings = div.settings || {};
+  const groups = div.groups || [];
+  const venues = div.venues || [];
+  const advance = ADV[settings.playoffFormat] || 2;
+
+  S.settings = Object.assign({}, settings, {
+    name: S.settings?.name || '',
+    sport: S.settings?.sport || div.sport || 'Flag Football',
+    effectiveFields: venues.length || settings.numFields || 2
+  });
+  S.groups = groups;
+  S.schedule = (div.fixtures || []).filter(fixture => fixture.phase === 'group').map(fixture => {
+    const venueIndex = Number.isFinite(Number(fixture.venueIndex))
+      ? Number(fixture.venueIndex)
+      : Math.max(0, venues.findIndex(venue => venue.id === fixture.venueId));
+    const groupIndex = Math.max(0, groups.findIndex(group => group.id === fixture.groupId));
+
+    return {
+      id: fixture.id,
+      gi: groupIndex,
+      gName: fixture.groupName || groups[groupIndex]?.name || 'Group ' + GL[groupIndex],
+      tA: fixture.teamA || fixture.seedA?.label || 'TBD',
+      tB: fixture.teamB || fixture.seedB?.label || 'TBD',
+      field: venueIndex,
+      slot: fixture.slot,
+      time: fixture.startsAt,
+      scoreA: fixture.scoreA ?? null,
+      scoreB: fixture.scoreB ?? null,
+      ref: fixture.ref || ''
+    };
+  });
+  S.playoffs = window.RHMTournamentEngine.buildPlayoffs(groups.length * advance);
+}
+
 function save() {
+  syncLegacyTournamentFields();
   window.RHMTournamentStore.saveTournamentState(S).catch(error => console.error(error));
 }
 async function tryLoad() {
   try {
     const d = await window.RHMTournamentStore.loadTournamentState();
-    if (d) S = migrateLoadedState(d);
+    if (d) {
+      S = migrateLoadedState(d);
+      syncLegacyTournamentFields();
+    }
   } catch(e) {
     console.error(e);
   }
@@ -810,6 +850,7 @@ function generateSchedule() {
   div.venues = result.venues;
   div.fixtures = result.fixtures.map(fixture => Object.assign({ status:'scheduled' }, fixture));
   div.scheduleSummary = result.summary;
+  syncLegacyTournamentFields();
 
   save();
   switchTab('schedule');
@@ -1137,6 +1178,8 @@ function onFixtureDrop(event, venueId, slot) {
   event.preventDefault();
   const div = activeDivision();
   const fixtureId = event.dataTransfer.getData('text/plain') || draggingFixtureId;
+  const playoffOrder = validatePlayoffDropOrder(fixtureId, slot);
+  if (!playoffOrder.ok) { alert(playoffOrder.reason); return; }
   const result = window.RHMTournamentEngine.moveFixture({
     fixtureId,
     fixtures: div.fixtures,
@@ -1147,17 +1190,49 @@ function onFixtureDrop(event, venueId, slot) {
     settings: div.settings
   });
   if (!result.ok) { alert(result.reason); return; }
-  div.fixtures = result.fixtures;
+  const targetVenueIndex = div.venues.findIndex(venue => venue.id === venueId);
+  div.fixtures = result.fixtures.map(fixture => fixture.id === fixtureId
+    ? Object.assign({}, fixture, { venueIndex: Math.max(0, targetVenueIndex) })
+    : fixture);
   save();
   renderSchedule();
 }
 
+function playoffSourceIds(fixture) {
+  return ['seedA','seedB'].map(key => fixture?.[key]?.sourceFixtureId).filter(Boolean);
+}
+
+function validatePlayoffDropOrder(fixtureId, targetSlot) {
+  const div = activeDivision();
+  const fixtures = div.fixtures || [];
+  const moving = fixtures.find(fixture => fixture.id === fixtureId);
+  if (!moving || moving.phase !== 'playoff') return { ok: true };
+
+  const sourceIds = playoffSourceIds(moving);
+  const sourceConflict = fixtures.find(fixture => sourceIds.includes(fixture.id) && targetSlot <= fixture.slot);
+  if (sourceConflict) {
+    return { ok: false, reason: 'Playoff game cannot be scheduled before the game that feeds into it.' };
+  }
+
+  const dependentConflict = fixtures.find(fixture => {
+    if (fixture.phase !== 'playoff' || fixture.id === moving.id) return false;
+    return playoffSourceIds(fixture).includes(moving.id) && targetSlot >= fixture.slot;
+  });
+  if (dependentConflict) {
+    return { ok: false, reason: 'Earlier playoff game cannot be scheduled after a later game that depends on it.' };
+  }
+
+  return { ok: true };
+}
+
 async function publishTournament() {
+  syncLegacyTournamentFields();
   S = await window.RHMTournamentStore.publishTournamentState(S);
   renderPublishStatus();
 }
 
 async function unpublishTournament() {
+  syncLegacyTournamentFields();
   S = await window.RHMTournamentStore.unpublishTournamentState(S);
   renderPublishStatus();
 }
