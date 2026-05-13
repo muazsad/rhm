@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RHM Admin — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green: #2db84b;
+      --black: #0a0a0a;
+      --white: #f2f2ee;
+      --muted: #888;
+      --surface: #111;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--black);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid #1e1e1e;
+      width: 100%;
+      max-width: 400px;
+      padding: 2.5rem 2.5rem 3rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .card-logo {
+      margin-bottom: 1.75rem;
+    }
+    .card-logo img {
+      height: 60px;
+      width: auto;
+      display: block;
+    }
+
+    .card-headline {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.25rem;
+      letter-spacing: 0.08em;
+      color: var(--white);
+      margin-bottom: 0.35rem;
+    }
+
+    .card-sub {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: #1e1e1e;
+      margin-bottom: 2rem;
+    }
+
+    .form {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+
+    .field label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .field input {
+      background: #0d0d0d;
+      border: 1px solid #2a2a2a;
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      padding: 0.75rem 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    .field input::placeholder {
+      color: #444;
+    }
+
+    .field input:focus {
+      border-color: var(--green);
+    }
+
+    .btn-login {
+      margin-top: 0.5rem;
+      width: 100%;
+      background: var(--green);
+      color: #fff;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 0.12em;
+      border: none;
+      padding: 0.85rem 1rem;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+
+    .btn-login:hover {
+      background: #27a343;
+    }
+
+    .btn-login:active {
+      opacity: 0.85;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="card-logo">
+      <img src="RHM-Logo.png" alt="RHM Logo">
+    </div>
+    <div class="card-headline">Admin Access</div>
+    <div class="card-sub">Restricted Area</div>
+    <div class="divider"></div>
+
+    <form class="form" onsubmit="handleLogin(event)">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="admin@rhm.org" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn-login">Login</button>
+    </form>
+  </div>
+
+  <script>
+    function handleLogin(e) {
+      e.preventDefault();
+      window.location.href = 'admin-dashboard.html';
+    }
+  </script>
+</body>
+</html>

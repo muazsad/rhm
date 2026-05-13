@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RHM Admin — Events</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green: #2db84b;
+      --black: #0a0a0a;
+      --white: #f2f2ee;
+      --muted: #888;
+      --surface: #111;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--black);
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── NAVBAR ── */
+    .admin-nav {
+      background: var(--surface);
+      border-bottom: 1px solid #1e1e1e;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2.5rem;
+      height: 64px;
+    }
+    .nav-left { display: flex; align-items: center; gap: 1rem; }
+    .nav-left img { height: 36px; width: auto; }
+    .nav-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--muted);
+      border-left: 1px solid #2a2a2a; padding-left: 1rem;
+    }
+    .nav-right a {
+      font-size: 12px; font-weight: 500; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted);
+      text-decoration: none; transition: color 0.2s;
+    }
+    .nav-right a:hover { color: var(--green); }
+
+    /* ── MAIN ── */
+    .main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 3.5rem 2rem;
+    }
+
+    .page-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--green); margin-bottom: 0.5rem;
+    }
+    .page-headline {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 3rem; letter-spacing: 0.06em;
+      color: var(--white); margin-bottom: 2.5rem; line-height: 1;
+    }
+
+    /* ── TWO COLUMNS ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    /* ── FORM ── */
+    .form-panel {
+      background: var(--surface);
+      border: 1px solid #1e1e1e;
+      padding: 2rem;
+    }
+
+    .panel-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem; letter-spacing: 0.08em;
+      color: var(--white); margin-bottom: 1.5rem;
+    }
+
+    .form { display: flex; flex-direction: column; gap: 1rem; }
+
+    .field { display: flex; flex-direction: column; gap: 0.35rem; }
+
+    .field label {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--muted);
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      background: #0d0d0d;
+      border: 1px solid #2a2a2a;
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      padding: 0.7rem 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    .field input::placeholder,
+    .field textarea::placeholder { color: #444; }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus { border-color: var(--green); }
+
+    .field select {
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .field textarea { resize: vertical; min-height: 88px; }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    .btn-post {
+      margin-top: 0.25rem;
+      width: 100%;
+      background: var(--green);
+      color: #fff;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.05rem; letter-spacing: 0.12em;
+      border: none; padding: 0.8rem 1rem;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .btn-post:hover { background: #27a343; }
+
+    /* ── EVENT LIST ── */
+    .list-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.25rem;
+    }
+
+    .list-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem; letter-spacing: 0.08em; color: var(--white);
+    }
+
+    .event-count {
+      font-size: 12px; font-weight: 500; color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+
+    .event-card {
+      background: var(--surface);
+      border: 1px solid #1e1e1e;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      transition: border-color 0.2s;
+    }
+    .event-card:hover { border-color: #2a2a2a; }
+
+    .event-info { flex: 1; }
+
+    .event-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.15rem; letter-spacing: 0.06em;
+      color: var(--white); margin-bottom: 0.3rem;
+    }
+
+    .event-meta {
+      font-size: 12px; color: var(--muted);
+      display: flex; flex-wrap: wrap; gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .event-meta span { display: flex; align-items: center; gap: 0.3rem; }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 0.2rem 0.55rem;
+    }
+
+    .badge-open { background: rgba(45,184,75,0.15); color: var(--green); }
+    .badge-closed { background: rgba(255,255,255,0.06); color: var(--muted); }
+    .badge-soon { background: rgba(255,190,0,0.12); color: #fbbe00; }
+
+    .event-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+
+    .btn-edit,
+    .btn-delete {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 0.45rem 0.85rem;
+      border: none; cursor: pointer; transition: opacity 0.2s;
+    }
+
+    .btn-edit {
+      background: transparent;
+      border: 1px solid #2a2a2a;
+      color: var(--white);
+    }
+    .btn-edit:hover { border-color: var(--green); color: var(--green); }
+
+    .btn-delete {
+      background: transparent;
+      border: 1px solid #2a2a2a;
+      color: #e05555;
+    }
+    .btn-delete:hover { border-color: #e05555; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="admin-nav">
+    <div class="nav-left">
+      <img src="RHM-Logo.png" alt="RHM Logo">
+      <span class="nav-label">Admin Panel</span>
+    </div>
+    <div class="nav-right">
+      <a href="admin-login.html">Logout</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="page-label">Admin › Events</div>
+    <h1 class="page-headline">Manage Events</h1>
+
+    <div class="layout">
+
+      <!-- FORM -->
+      <div class="form-panel">
+        <div class="panel-title">Create New Event</div>
+        <form class="form" onsubmit="addEvent(event)">
+          <div class="field">
+            <label for="ev-name">Event Name</label>
+            <input type="text" id="ev-name" placeholder="e.g. RHM Flag Football Tournament" required>
+          </div>
+
+          <div class="row-2">
+            <div class="field">
+              <label for="ev-sport">Sport</label>
+              <select id="ev-sport">
+                <option value="flag-football">Flag Football</option>
+                <option value="basketball">Basketball</option>
+                <option value="soccer">Soccer</option>
+                <option value="volleyball">Volleyball</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="ev-status">Status</label>
+              <select id="ev-status">
+                <option value="open">Registration Open</option>
+                <option value="closed">Registration Closed</option>
+                <option value="soon">Coming Soon</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row-2">
+            <div class="field">
+              <label for="ev-date">Date</label>
+              <input type="date" id="ev-date" required>
+            </div>
+            <div class="field">
+              <label for="ev-time">Time</label>
+              <input type="time" id="ev-time">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="ev-location">Location</label>
+            <input type="text" id="ev-location" placeholder="e.g. Mississauga Sports Park">
+          </div>
+
+          <div class="field">
+            <label for="ev-desc">Description</label>
+            <textarea id="ev-desc" placeholder="Short event description…"></textarea>
+          </div>
+
+          <button type="submit" class="btn-post">Post Event</button>
+        </form>
+      </div>
+
+      <!-- EVENT LIST -->
+      <div class="list-panel">
+        <div class="list-header">
+          <div class="list-title">Current Events</div>
+          <span class="event-count" id="ev-count">1 event</span>
+        </div>
+
+        <div id="events-list">
+
+          <!-- Sample: Flag Football Tournament -->
+          <div class="event-card" id="ev-sample">
+            <div class="event-info">
+              <div class="event-name">RHM Flag Football Tournament</div>
+              <div class="event-meta">
+                <span>🗓 June 14, 2025</span>
+                <span>🕙 10:00 AM</span>
+                <span>📍 Mississauga Sports Park</span>
+                <span>🏈 Flag Football</span>
+              </div>
+              <span class="badge badge-open">Registration Open</span>
+            </div>
+            <div class="event-actions">
+              <button class="btn-edit">Edit</button>
+              <button class="btn-delete" onclick="deleteEvent('ev-sample')">Delete</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    let eventCount = 1;
+
+    const statusMap = {
+      open: { label: 'Registration Open', cls: 'badge-open' },
+      closed: { label: 'Registration Closed', cls: 'badge-closed' },
+      soon: { label: 'Coming Soon', cls: 'badge-soon' },
+    };
+
+    const sportEmoji = {
+      'flag-football': '🏈',
+      'basketball': '🏀',
+      'soccer': '⚽',
+      'volleyball': '🏐',
+      'other': '🎯',
+    };
+
+    function addEvent(e) {
+      e.preventDefault();
+      const name = document.getElementById('ev-name').value.trim();
+      const sport = document.getElementById('ev-sport').value;
+      const status = document.getElementById('ev-status').value;
+      const date = document.getElementById('ev-date').value;
+      const time = document.getElementById('ev-time').value;
+      const location = document.getElementById('ev-location').value.trim();
+
+      const id = 'ev-' + Date.now();
+      const s = statusMap[status];
+      const emoji = sportEmoji[sport] || '🎯';
+      const sportLabel = document.getElementById('ev-sport').options[document.getElementById('ev-sport').selectedIndex].text;
+
+      const dateDisplay = date ? new Date(date + 'T00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+      const timeDisplay = time ? new Date('1970-01-01T' + time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+
+      const card = document.createElement('div');
+      card.className = 'event-card';
+      card.id = id;
+      card.innerHTML = `
+        <div class="event-info">
+          <div class="event-name">${name}</div>
+          <div class="event-meta">
+            ${dateDisplay ? `<span>🗓 ${dateDisplay}</span>` : ''}
+            ${timeDisplay ? `<span>🕙 ${timeDisplay}</span>` : ''}
+            ${location ? `<span>📍 ${location}</span>` : ''}
+            <span>${emoji} ${sportLabel}</span>
+          </div>
+          <span class="badge ${s.cls}">${s.label}</span>
+        </div>
+        <div class="event-actions">
+          <button class="btn-edit">Edit</button>
+          <button class="btn-delete" onclick="deleteEvent('${id}')">Delete</button>
+        </div>
+      `;
+
+      document.getElementById('events-list').prepend(card);
+      eventCount++;
+      document.getElementById('ev-count').textContent = eventCount + ' event' + (eventCount !== 1 ? 's' : '');
+      e.target.reset();
+    }
+
+    function deleteEvent(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.remove();
+        eventCount = Math.max(0, eventCount - 1);
+        document.getElementById('ev-count').textContent = eventCount + ' event' + (eventCount !== 1 ? 's' : '');
+      }
+    }
+  </script>
+
+</body>
+</html>
