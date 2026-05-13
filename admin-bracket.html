@@ -136,6 +136,27 @@
 
     /* ── SCHEDULE ── */
     .sched-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .sched-meta {
+      display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .sched-stat {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 0.85rem 1rem;
+    }
+    .sched-stat span {
+      display: block; font-size: 9px; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 0.25rem;
+    }
+    .sched-stat strong {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.35rem; letter-spacing: 0.08em;
+      color: var(--white); font-weight: 400;
+    }
+    .sched-note {
+      background: rgba(45,184,75,0.07); border: 1px solid rgba(45,184,75,0.3);
+      color: var(--green); padding: 0.85rem 1rem; margin-bottom: 1rem;
+      font-size: 12px; line-height: 1.5;
+    }
     .sched-wrap { overflow-x: auto; }
     .sched-table { border-collapse: collapse; min-width: 500px; width: 100%; }
     .sched-table th {
@@ -232,6 +253,7 @@
     @media (max-width: 900px) {
       .setup-grid { grid-template-columns: 1fr; }
       .bs-grid { grid-template-columns: 1fr; }
+      .sched-meta { grid-template-columns: 1fr 1fr; }
       .panel { padding: 1.5rem 1rem; }
       .admin-nav, .tab-nav { padding: 0 1rem; }
       .tab-btn { padding: 0.75rem 1rem; font-size: 0.95rem; }
@@ -368,6 +390,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/supabase-config.js"></script>
 <script src="assets/js/admin-auth.js"></script>
+<script src="assets/js/tournament-engine.js"></script>
 <script src="assets/js/tournament-store.js"></script>
 <script>
 const LS = 'RHM_tournament';
@@ -481,78 +504,20 @@ function removeTeam(gi, ti) { if (S.groups[gi].teams.length > 2) { S.groups[gi].
 // ── SCHEDULE GENERATION ──
 function generateSchedule() {
   S.settings = readSettings();
-  // sync group count
   const n = S.settings.numGroups;
   while (S.groups.length < n) S.groups.push({ name:'Group '+GL[S.groups.length], teams:['','','',''] });
   S.groups = S.groups.slice(0, n);
   S.groups.forEach(g => { g.name = 'Group ' + GL[S.groups.indexOf(g)]; });
 
-  const { numFields, gameDuration, breakBetween, startTime } = S.settings;
-
-  // Round-robin pairs per group
-  let allGames = [];
-  S.groups.forEach((grp, gi) => {
-    const teams = grp.teams.filter(t => t.trim());
-    for (let i = 0; i < teams.length; i++)
-      for (let j = i+1; j < teams.length; j++)
-        allGames.push({ gi, gName:'Group '+GL[gi], tA:teams[i], tB:teams[j] });
+  const result = window.RHMTournamentEngine.generateSchedule({
+    settings: S.settings,
+    groups: S.groups
   });
-
-  // Interleave groups so they mix in the schedule
-  const byGrp = S.groups.map((_,gi) => allGames.filter(g => g.gi === gi));
-  const maxLen = Math.max(...byGrp.map(g => g.length));
-  const interleaved = [];
-  for (let i = 0; i < maxLen; i++) byGrp.forEach(g => { if (g[i]) interleaved.push(g[i]); });
-
-  // Greedy slot assignment
-  const sched = [];
-  const remaining = [...interleaved];
-  let slot = 0;
-  while (remaining.length > 0) {
-    const busy = new Set();
-    let placed = 0;
-    for (let f = 0; f < numFields; f++) {
-      const idx = remaining.findIndex(g => !busy.has(g.tA) && !busy.has(g.tB));
-      if (idx === -1) break;
-      const g = remaining.splice(idx, 1)[0];
-      busy.add(g.tA); busy.add(g.tB);
-      sched.push({ id:`g${g.gi}_${sched.length}`, gi:g.gi, gName:g.gName, tA:g.tA, tB:g.tB, field:f, slot, scoreA:null, scoreB:null });
-      placed++;
-    }
-    if (!placed) { slot++; continue; }
-    slot++;
-  }
-
-  // Compute times
-  const [sh,sm] = startTime.split(':').map(Number);
-  const dur = gameDuration + breakBetween;
-  sched.forEach(g => {
-    const tot = sh*60 + sm + g.slot*dur;
-    g.time = `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
-  });
-
-  // Assign refs (prefer different group, not playing in same slot)
-  sched.forEach(game => {
-    const playing = new Set(sched.filter(g => g.slot === game.slot).flatMap(g => [g.tA, g.tB]));
-    let ref = '';
-    for (const [gi, grp] of S.groups.entries()) {
-      if (gi === game.gi) continue;
-      const a = grp.teams.find(t => t.trim() && !playing.has(t));
-      if (a) { ref = a; break; }
-    }
-    if (!ref) {
-      const a = S.groups[game.gi].teams.find(t => t.trim() && t !== game.tA && t !== game.tB && !playing.has(t));
-      ref = a || '—';
-    }
-    game.ref = ref;
-  });
-
-  S.schedule = sched;
-
-  // Playoff structure
-  const advance = ADV[S.settings.playoffFormat] || 2;
-  const total = S.groups.length * advance;
-  S.playoffs = buildPlayoffs(total);
+  S.settings = result.settings;
+  S.groups = result.groups;
+  S.schedule = result.schedule;
+  S.playoffs = result.playoffs;
+  S.scheduleSummary = result.summary;
 
   save();
   switchTab('schedule');
@@ -591,9 +556,25 @@ function renderSchedule() {
   const slots = [...new Set(S.schedule.map(g => g.slot))].sort((a,b)=>a-b);
   const timeOf = {};
   S.schedule.forEach(g => { timeOf[g.slot] = g.time; });
-  const nf = S.settings.numFields;
+  const nf = window.RHMTournamentEngine.getActiveFieldCount(S.schedule) || S.settings.numFields;
+  const summary = S.scheduleSummary || {
+    totalGames: S.schedule.length,
+    totalSlots: slots.length,
+    requestedFields: S.settings.numFields,
+    activeFields: nf,
+    gameBlockMinutes: (parseInt(S.settings.gameDuration) || 25) + (parseInt(S.settings.breakBetween) || 0),
+    note: ''
+  };
 
-  let html = '<table class="sched-table"><thead><tr><th>Field</th>';
+  let html = `
+    <div class="sched-meta">
+      <div class="sched-stat"><span>Games</span><strong>${summary.totalGames}</strong></div>
+      <div class="sched-stat"><span>Time Slots</span><strong>${summary.totalSlots}</strong></div>
+      <div class="sched-stat"><span>Fields Used</span><strong>${summary.activeFields}</strong></div>
+      <div class="sched-stat"><span>Block</span><strong>${summary.gameBlockMinutes} min</strong></div>
+    </div>
+    ${summary.note ? `<div class="sched-note">${eh(summary.note)}</div>` : ''}
+    <table class="sched-table"><thead><tr><th>Field</th>`;
   slots.forEach(s => { html += `<th>${timeOf[s]}</th>`; });
   html += '</tr></thead><tbody>';
 
