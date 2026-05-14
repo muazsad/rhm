@@ -1,18 +1,16 @@
 <claude-mem-context>
 # Memory Context
 
-# [RHM-SITE] recent context, 2026-05-13 6:06pm EDT
+# [RHM-SITE] recent context, 2026-05-14 8:50am EDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (21,353t read) | 1,117,508t work | 98% savings
+Stats: 50 obs (21,441t read) | 1,518,139t work | 99% savings
 
 ### May 13, 2026
 140 11:47a 🔵 Non-transitive comparator bug in tournament-standings.js compareRows for 3-way head-to-head cycles
-141 " 🔴 Fix requested for non-transitive head-to-head comparator in tournament-standings.js
-147 " 🔴 tournament-standings.js compareRows made transitive — cohort-aware h2h applied only for 2-team ties
 142 " 🔵 compareRows Head-to-Head Is Non-Transitive for 3+ Team Cycles
 143 11:48a 🔵 Pairwise H2H Sort Instability Confirmed Across All 6 Team Input Permutations
 144 " 🔴 Cohort-Aware rankRows Replaces Non-Transitive Pairwise H2H in Array.sort
@@ -60,6 +58,8 @@ Stats: 50 obs (21,353t read) | 1,117,508t work | 98% savings
 187 4:53p 🟣 Tournament Manager Full Implementation – Code Review Scope
 188 4:56p 🔵 Tournament Manager Full Implementation Passed Final Code Review
 189 " 🔵 Tournament Manager Code Review – APPROVED, No Blocking Issues Found
+190 5:57p 🟣 Playoff bracket shows TBD until all group games complete
+191 " 🔵 Two separate seed-gating options exist in projectSeeds()
 
-Access 1118k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 1518k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

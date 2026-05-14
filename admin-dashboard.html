@@ -43,6 +43,11 @@
       gap: 1rem;
     }
 
+    .nav-left a {
+      display: flex;
+      align-items: center;
+    }
+
     .nav-left img {
       height: 36px;
       width: auto;
@@ -181,7 +186,9 @@
 
   <nav class="admin-nav">
     <div class="nav-left">
-      <img src="RHM-Logo.png" alt="RHM Logo">
+      <a href="index.html" aria-label="RHM home">
+        <img src="RHM-Logo.png" alt="RHM Logo">
+      </a>
       <span class="nav-label">Admin Panel</span>
     </div>
     <div class="nav-right">

@@ -380,7 +380,7 @@
           </div>
           <div class="perk-item">
             <div class="perk-dot"></div>
-            <div class="perk-text"><strong>Community reach</strong> — authentic connection with a tight-knit, engaged Muslim audience across Western Massachusetts and beyond.</div>
+            <div class="perk-text"><strong>Community reach</strong> — authentic connection with a tight-knit, engaged Muslim audience across New England.</div>
           </div>
           <div class="perk-item">
             <div class="perk-dot"></div>
@@ -409,7 +409,7 @@
             <label class="form-label" for="message">Message</label>
             <textarea class="form-textarea" id="message" name="message" placeholder="Tell us about your organization and how you'd like to get involved..."></textarea>
           </div>
-          <button type="submit" class="btn-submit">Send Application →</button>
+          <button type="submit" class="btn-submit">Send Sponsorship Inquiry →</button>
         </form>
       </div>
     </div>
@@ -420,7 +420,7 @@
     <div class="footer-grid">
       <div class="footer-brand">
         <img src="RHM-Logo.png" alt="RHM">
-        <p>Reuniting Hearts of Muslims — fostering unity, brotherhood, and sport across Western Massachusetts.</p>
+        <p>Reuniting Hearts of Muslims — fostering unity, brotherhood, and sport across New England.</p>
       </div>
       <div class="footer-col">
         <h4>Navigate</h4>
@@ -436,16 +436,16 @@
       <div class="footer-col">
         <h4>Follow Us</h4>
         <div class="social-row">
-          <a href="#" class="social-btn" aria-label="Instagram">
+          <a href="https://www.instagram.com/rhm_athletic/" class="social-btn" aria-label="Instagram" target="_blank" rel="noopener noreferrer">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <rect x="2" y="2" width="20" height="20" rx="5"/>
               <circle cx="12" cy="12" r="5"/>
               <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
             </svg>
           </a>
-          <a href="#" class="social-btn" aria-label="X / Twitter">
+          <a href="https://www.tiktok.com/@rhm.athletics" class="social-btn" aria-label="TikTok" target="_blank" rel="noopener noreferrer">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              <path d="M16.6 3c.35 2.2 1.63 3.83 3.7 4.21v3.27a8.13 8.13 0 0 1-3.6-.83v5.7c0 3.84-2.41 5.65-5.31 5.65A5.22 5.22 0 0 1 6 15.78c0-3.47 2.72-5.72 6.16-5.28v3.35c-1.24-.2-2.47.5-2.47 1.83a1.72 1.72 0 0 0 1.79 1.72c1.06 0 1.79-.62 1.79-2.05V3h3.33z"/>
             </svg>
           </a>
         </div>
@@ -453,7 +453,7 @@
     </div>
     <div class="footer-bottom">
       <p>© 2025 Reuniting Hearts of Muslims. All rights reserved.</p>
-      <p>Western Massachusetts</p>
+      <p>New England</p>
     </div>
   </footer>
 
@@ -465,11 +465,27 @@
 
     function handleSubmit(e) {
       e.preventDefault();
+      const form = e.target;
+      const name = form.elements.name.value.trim();
+      const org = form.elements.org.value.trim();
+      const email = form.elements.email.value.trim();
+      const message = form.elements.message.value.trim();
+      const subject = encodeURIComponent('RHM Sponsorship Inquiry - ' + org);
+      const body = encodeURIComponent([
+        'Sponsorship inquiry',
+        '',
+        'Name: ' + name,
+        'Organization: ' + org,
+        'Email: ' + email,
+        '',
+        'Message:',
+        message || 'No additional message provided.'
+      ].join('\n'));
       const btn = e.target.querySelector('.btn-submit');
-      btn.textContent = 'Sent! We\'ll be in touch.';
+      window.location.href = 'mailto:rhmathletics@gmail.com?subject=' + subject + '&body=' + body;
+      btn.textContent = 'Opening email...';
       btn.style.background = 'transparent';
       btn.style.color = 'var(--green)';
-      btn.disabled = true;
     }
   </script>
 </body>
