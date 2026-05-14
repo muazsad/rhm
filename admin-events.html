@@ -127,6 +127,79 @@
     .field textarea { resize: vertical; min-height: 88px; }
 
     .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .check-row {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.65rem;
+      color: var(--white);
+      font-size: 13px;
+    }
+    .check-row input { width: auto; accent-color: var(--green); }
+    .builder-panel {
+      border: 1px solid #242424;
+      background: #0b0b0b;
+      padding: 1rem;
+      display: none;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+    .builder-panel.active { display: flex; }
+    .builder-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .builder-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--green);
+    }
+    .btn-small {
+      background: transparent;
+      border: 1px solid #2a2a2a;
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      padding: 0.45rem 0.65rem;
+      cursor: pointer;
+    }
+    .btn-small:hover { border-color: var(--green); color: var(--green); }
+    .question-card {
+      border: 1px solid #222;
+      background: #111;
+      padding: 0.85rem;
+      display: grid;
+      gap: 0.75rem;
+    }
+    .question-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .question-actions label {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .question-actions input { width: auto; accent-color: var(--green); }
+    .btn-remove {
+      background: transparent;
+      border: none;
+      color: #e05555;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
 
     .btn-post {
       margin-top: 0.25rem;
@@ -301,6 +374,27 @@
             <textarea id="ev-desc" placeholder="Short event description…"></textarea>
           </div>
 
+          <label class="field check-row" for="reg-enabled">
+            <input type="checkbox" id="reg-enabled" checked onchange="toggleRegistrationBuilder()">
+            Enable registration form
+          </label>
+
+          <div class="builder-panel active" id="reg-builder-panel">
+            <div class="builder-head">
+              <div class="builder-title">Registration Form Builder</div>
+              <button class="btn-small" type="button" onclick="addRegistrationQuestion()">Add Question</button>
+            </div>
+            <label class="field check-row" for="reg-payment-required">
+              <input type="checkbox" id="reg-payment-required">
+              Require payment after registration
+            </label>
+            <div class="field">
+              <label for="reg-payment-link">Stripe Payment Link</label>
+              <input type="url" id="reg-payment-link" placeholder="Add later, e.g. https://buy.stripe.com/...">
+            </div>
+            <div id="reg-builder"></div>
+          </div>
+
           <button type="submit" class="btn-post">Post Event</button>
         </form>
       </div>
@@ -358,9 +452,95 @@
       'volleyball': '🏐',
       'other': '🎯',
     };
+    let registrationQuestions = [];
 
     function eh(s) {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function defaultRegistrationQuestions() {
+      return JSON.parse(JSON.stringify(window.RHMEventsStore.defaultRegistrationQuestions || []));
+    }
+
+    function toggleRegistrationBuilder() {
+      document.getElementById('reg-builder-panel').classList.toggle('active', document.getElementById('reg-enabled').checked);
+    }
+
+    function renderRegistrationBuilder() {
+      const builder = document.getElementById('reg-builder');
+      builder.innerHTML = registrationQuestions.map((question, index) => `
+        <div class="question-card" data-question-index="${index}">
+          <div class="row-2">
+            <div class="field">
+              <label>Question Label</label>
+              <input type="text" value="${eh(question.label)}" oninput="updateRegistrationQuestion(${index}, 'label', this.value)" required>
+            </div>
+            <div class="field">
+              <label>Field Type</label>
+              <select onchange="updateRegistrationQuestion(${index}, 'type', this.value)">
+                ${['text','email','phone','number','textarea','checkbox'].map(type => `<option value="${type}" ${question.type === type ? 'selected' : ''}>${type}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Min</label>
+              <input type="number" value="${question.min ?? ''}" oninput="updateRegistrationQuestion(${index}, 'min', this.value)">
+            </div>
+            <div class="field">
+              <label>Max</label>
+              <input type="number" value="${question.max ?? ''}" oninput="updateRegistrationQuestion(${index}, 'max', this.value)">
+            </div>
+          </div>
+          <div class="field">
+            <label>Help Text</label>
+            <input type="text" value="${eh(question.help || '')}" oninput="updateRegistrationQuestion(${index}, 'help', this.value)">
+          </div>
+          <div class="question-actions">
+            <label><input type="checkbox" ${question.required !== false ? 'checked' : ''} onchange="updateRegistrationQuestion(${index}, 'required', this.checked)"> Required</label>
+            <button class="btn-remove" type="button" onclick="removeRegistrationQuestion(${index})">Remove</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateRegistrationQuestion(index, key, value) {
+      const question = registrationQuestions[index];
+      if (!question) return;
+      if (key === 'required') {
+        question.required = value === true;
+      } else if (key === 'min' || key === 'max') {
+        question[key] = value === '' ? null : Number(value);
+      } else {
+        question[key] = value;
+      }
+    }
+
+    function addRegistrationQuestion() {
+      registrationQuestions.push({
+        id: 'custom_' + Date.now(),
+        label: 'New Question',
+        type: 'text',
+        required: false,
+        min: null,
+        max: null,
+        help: ''
+      });
+      renderRegistrationBuilder();
+    }
+
+    function removeRegistrationQuestion(index) {
+      registrationQuestions.splice(index, 1);
+      renderRegistrationBuilder();
+    }
+
+    function collectRegistrationConfig() {
+      return window.RHMEventsStore.normalizeRegistration({
+        enabled: document.getElementById('reg-enabled').checked,
+        paymentRequired: document.getElementById('reg-payment-required').checked,
+        paymentLink: document.getElementById('reg-payment-link').value.trim(),
+        questions: registrationQuestions
+      });
     }
 
     function eventCardHTML(event) {
@@ -413,7 +593,8 @@
         date: date,
         time: time,
         location: location,
-        description: description
+        description: description,
+        registration: collectRegistrationConfig()
       });
 
       const card = document.createElement('div');
@@ -425,6 +606,12 @@
       eventCount++;
       document.getElementById('ev-count').textContent = eventCount + ' event' + (eventCount !== 1 ? 's' : '');
       e.target.reset();
+      document.getElementById('reg-enabled').checked = true;
+      document.getElementById('reg-payment-required').checked = false;
+      document.getElementById('reg-payment-link').value = '';
+      registrationQuestions = defaultRegistrationQuestions();
+      toggleRegistrationBuilder();
+      renderRegistrationBuilder();
     }
 
     async function deleteEvent(id) {
@@ -442,6 +629,8 @@
       const admin = await window.RHMAdminAuth.requireAdmin();
       if (!admin) return;
       renderEvents(await window.RHMEventsStore.listAdminEvents());
+      registrationQuestions = defaultRegistrationQuestions();
+      renderRegistrationBuilder();
     }
 
     initAdminEvents().catch(error => {

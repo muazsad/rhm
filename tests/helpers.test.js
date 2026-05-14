@@ -98,6 +98,24 @@ test('event store normalizes records for public rendering', () => {
   assert.equal(event.timeLabel, '10:00 AM');
 });
 
+test('event store supplies editable default registration questions', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/events-store.js', sandbox);
+
+  const registration = sandbox.window.RHMEventsStore.normalizeRegistration({ enabled: true });
+
+  assert.equal(registration.enabled, true);
+  assert.equal(registration.paymentRequired, false);
+  assert.equal(registration.questions.length >= 8, true);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(registration.questions.slice(0, 4).map(question => question.label))),
+    ['First Name', 'Last Name', 'Email address', 'Phone number']
+  );
+  assert.equal(registration.questions.find(question => question.id === 'player_count').min, 3);
+  assert.equal(registration.questions.find(question => question.id === 'player_count').max, 5);
+  assert.equal(registration.questions.find(question => question.id === 'agreement').type, 'checkbox');
+});
+
 test('tournament store hides drafts from public loads', async () => {
   const sandbox = makeSandbox();
   sandbox.window.RHM_SUPABASE_CONFIG_OVERRIDE = {

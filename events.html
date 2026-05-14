@@ -228,6 +228,162 @@
       flex-wrap: wrap;
     }
 
+    /* Registration modal */
+    .registration-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 4rem 1.5rem;
+      background: rgba(0,0,0,0.82);
+      overflow-y: auto;
+    }
+    .registration-modal.active { display: flex; }
+    .registration-dialog {
+      width: min(940px, 100%);
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-left: 4px solid var(--green);
+      box-shadow: 0 28px 80px rgba(0,0,0,0.55);
+    }
+    .registration-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1.5rem;
+      padding: 2rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .registration-kicker {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .registration-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      line-height: 1;
+      letter-spacing: 0.04em;
+      color: var(--white);
+    }
+    .modal-close {
+      width: 42px;
+      height: 42px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: transparent;
+      color: var(--white);
+      font-size: 1.6rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .modal-close:hover { color: var(--green); border-color: var(--green); }
+    .registration-body {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 2rem;
+      padding: 2rem;
+    }
+    .registration-summary {
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.025);
+      padding: 1.5rem;
+      align-self: start;
+    }
+    .summary-row {
+      padding: 0.85rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-label {
+      display: block;
+      color: var(--green);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+    .summary-value {
+      color: rgba(242,242,238,0.82);
+      font-size: 0.93rem;
+      line-height: 1.55;
+    }
+    .registration-form {
+      display: grid;
+      gap: 1rem;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .form-group { display: grid; gap: 0.35rem; }
+    .form-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: rgba(242,242,238,0.58);
+    }
+    .form-input, .form-textarea {
+      width: 100%;
+      background: #151515;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--white);
+      font: inherit;
+      padding: 0.85rem 0.95rem;
+      border-radius: 0;
+    }
+    .form-input:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--green);
+    }
+    .form-textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    .agreement-box {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      padding: 1rem;
+      border: 1px solid rgba(45,184,75,0.24);
+      background: rgba(45,184,75,0.06);
+      color: rgba(242,242,238,0.72);
+      font-size: 0.86rem;
+      line-height: 1.65;
+    }
+    .agreement-box input { margin-top: 0.3rem; accent-color: var(--green); }
+    .registration-actions {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn-payment {
+      display: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--green);
+      border: 1.5px solid var(--green);
+      padding: 0.82rem 1.5rem;
+      text-decoration: none;
+    }
+    .btn-payment.active { display: inline-block; }
+    .form-status {
+      color: rgba(242,242,238,0.62);
+      font-size: 0.85rem;
+      line-height: 1.55;
+    }
+
     /* Coming soon section */
     .coming-soon {
       padding: 6rem 3rem;
@@ -334,6 +490,9 @@
       .event-card { grid-template-columns: 1fr; }
       .event-date-block { flex-direction: row; gap: 1rem; padding: 1.5rem 2rem; justify-content: flex-start; }
       .event-details { padding: 2rem 1.5rem; }
+      .registration-body { grid-template-columns: 1fr; }
+      .registration-head, .registration-body { padding: 1.5rem; }
+      .form-grid { grid-template-columns: 1fr; }
       .coming-soon { padding: 4rem 1.5rem; }
       .future-events-grid { grid-template-columns: 1fr; }
       footer { padding: 4rem 1.5rem 2rem; }
@@ -388,21 +547,21 @@
     <div class="event-card reveal">
       <div class="event-date-block">
         <div>
-          <div class="event-day">30</div>
+          <div class="event-day">23</div>
           <div class="event-month">May</div>
         </div>
       </div>
       <div class="event-details">
         <div>
           <div class="event-badge">Registration Open</div>
-          <h2 class="event-title">2ND ANNUAL MUSLIM FLAG FOOTBALL TOURNAMENT</h2>
+          <h2 class="event-title">RHM 3V3 TOURNAMENT</h2>
           <div class="event-meta">
             <span class="event-meta-item">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M8 2a4 4 0 0 1 4 4c0 3-4 8-4 8S4 9 4 6a4 4 0 0 1 4-4z"/>
                 <circle cx="8" cy="6" r="1.5"/>
               </svg>
-              East Windsor, CT
+              Windsor, CT
             </span>
             <span class="event-meta-item">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -417,15 +576,15 @@
                 <path d="M2 7h12"/>
                 <path d="M5 1v3M11 1v3"/>
               </svg>
-              May 30, 2025
+              May 23, 2026
             </span>
           </div>
           <p class="event-description">
-            The second edition of RHM's flagship flag football tournament returns. Teams from across New England compete in a full day of fast-paced, non-contact football. All skill levels welcome — just bring your team, your energy, and your game face.
+            Bring a squad of 3 to 5 players for a fast-paced RHM 3v3 tournament. Teams must be 16+ and registration is confirmed only after the non-refundable $70 team payment is received.
           </p>
         </div>
         <div class="event-ctas">
-          <a href="#" class="btn-primary">Register Now →</a>
+          <a href="#registration-modal" class="btn-primary" data-register-event>Register Now →</a>
           <a href="#" class="btn-outline">Learn More</a>
           <a href="tournament-live.html" class="btn-outline" style="border-color:var(--green);color:var(--green);">View Live Results</a>
         </div>
@@ -454,6 +613,53 @@
       <div class="future-card">
         <div class="future-card-sport">Soccer Cup</div>
         <div class="future-card-label">Fall · TBA</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGISTRATION INTAKE -->
+  <div class="registration-modal" id="registration-modal" aria-hidden="true">
+    <div class="registration-dialog" role="dialog" aria-modal="true" aria-labelledby="registration-title">
+      <div class="registration-head">
+        <div>
+          <div class="registration-kicker">Team Registration</div>
+          <h2 class="registration-title" id="registration-title">Event Registration</h2>
+        </div>
+        <button class="modal-close" type="button" data-close-registration aria-label="Close registration">×</button>
+      </div>
+      <div class="registration-body">
+        <div class="registration-summary">
+          <div class="summary-row">
+            <span class="summary-label">Event Date</span>
+            <span class="summary-value" id="registration-event-date">Set by event</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Start Time</span>
+            <span class="summary-value" id="registration-event-time">Set by event</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Location</span>
+            <span class="summary-value" id="registration-event-location">Set by event</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Entry Fee</span>
+            <span class="summary-value" id="registration-event-fee">Set by event</span>
+          </div>
+          <div class="summary-row" id="registration-payment-summary">
+            <span class="summary-label">Payment To Confirm Registration</span>
+            <span class="summary-value">Submit your team info first, then complete payment. Registration is not confirmed until payment is received.</span>
+          </div>
+        </div>
+
+        <form class="registration-form" id="registration-form">
+          <input type="hidden" id="reg-submitted-at" name="submittedAt" aria-label="Submitted at">
+          <div id="registration-fields"></div>
+          <div class="registration-actions">
+            <button class="btn-primary" type="submit">Submit Registration →</button>
+            <a class="btn-payment" id="registration-payment-link" href="#" target="_blank" rel="noopener noreferrer">Payment To Confirm Registration →</a>
+          </div>
+          <p class="form-status" id="registration-status"></p>
+        </form>
       </div>
     </div>
   </div>
@@ -504,6 +710,27 @@
   <script src="assets/js/supabase-config.js"></script>
   <script src="assets/js/events-store.js"></script>
   <script>
+    let publicEvents = [];
+    let activeRegistrationEvent = null;
+
+    const fallbackRegistrationEvent = window.RHMEventsStore.normalizeEvent({
+      id: 'fallback-3v3',
+      title: 'RHM 3v3 Tournament',
+      sport: 'basketball',
+      status: 'open',
+      event_date: '2026-05-23',
+      event_time: '12:00',
+      location: '875 Dayhill Rd, Windsor, CT',
+      description: 'Bring a squad of 3 to 5 players for a fast-paced RHM 3v3 tournament. Teams must be 16+ and registration is confirmed only after the non-refundable $70 team payment is received.',
+      registration: {
+        enabled: true,
+        paymentRequired: true,
+        paymentLink: '',
+        questions: window.RHMEventsStore.defaultRegistrationQuestions
+      }
+    });
+    publicEvents = [fallbackRegistrationEvent];
+
     function escapeEventText(value) {
       return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
@@ -532,7 +759,7 @@
               <p class="event-description">${escapeEventText(event.description || event.sportLabel)}</p>
             </div>
             <div class="event-ctas">
-              <a href="#" class="btn-primary">Register Now →</a>
+              ${event.registration?.enabled ? `<a href="#registration-modal" class="btn-primary" data-register-event data-event-id="${escapeEventText(event.id)}">Register Now →</a>` : ''}
               <a href="tournament-live.html" class="btn-outline" style="border-color:var(--green);color:var(--green);">View Live Results</a>
             </div>
           </div>
@@ -540,14 +767,182 @@
       `;
     }
 
+    function questionInput(question) {
+      const id = 'reg-q-' + question.id;
+      const required = question.required ? 'required' : '';
+      const min = question.min !== null && question.min !== undefined ? `min="${escapeEventText(question.min)}"` : '';
+      const max = question.max !== null && question.max !== undefined ? `max="${escapeEventText(question.max)}"` : '';
+      const help = question.help ? `<div class="form-status">${escapeEventText(question.help)}</div>` : '';
+
+      if (question.type === 'textarea') {
+        return `<textarea class="form-textarea" id="${id}" name="${escapeEventText(question.id)}" ${required}></textarea>${help}`;
+      }
+      if (question.type === 'checkbox') {
+        return `
+          <label class="agreement-box" for="${id}">
+            <input id="${id}" name="${escapeEventText(question.id)}" type="checkbox" ${required}>
+            <span>${escapeEventText(question.label)}</span>
+          </label>
+          ${help}`;
+      }
+
+      const type = question.type === 'phone' ? 'tel' : question.type;
+      return `<input class="form-input" id="${id}" name="${escapeEventText(question.id)}" type="${escapeEventText(type)}" ${min} ${max} ${required}>${help}`;
+    }
+
+    function renderRegistrationFields(eventConfig) {
+      const questions = eventConfig.registration?.questions || [];
+      document.getElementById('registration-fields').innerHTML = questions.map(question => {
+        if (question.type === 'checkbox') return questionInput(question);
+        return `
+          <div class="form-group">
+            <label class="form-label" for="reg-q-${escapeEventText(question.id)}">${escapeEventText(question.label)}${question.required ? ' (Required)' : ''}</label>
+            ${questionInput(question)}
+          </div>`;
+      }).join('');
+    }
+
+    function updateRegistrationSummary(eventConfig) {
+      document.getElementById('registration-title').textContent = eventConfig.title + ' Registration';
+      document.getElementById('registration-event-date').textContent = eventConfig.dateLabel || 'Set by event';
+      document.getElementById('registration-event-time').textContent = eventConfig.timeLabel || 'Set by event';
+      document.getElementById('registration-event-location').textContent = eventConfig.location || 'Set by event';
+      document.getElementById('registration-event-fee').textContent = eventConfig.registration?.paymentRequired ? 'Payment required' : 'No payment required';
+      document.getElementById('registration-payment-summary').style.display = eventConfig.registration?.paymentRequired ? '' : 'none';
+    }
+
+    function openRegistration(event) {
+      event.preventDefault();
+      const trigger = event.target.closest('[data-register-event]');
+      const eventId = trigger?.dataset.eventId || fallbackRegistrationEvent.id;
+      activeRegistrationEvent = publicEvents.find(item => item.id === eventId) || fallbackRegistrationEvent;
+      renderRegistrationFields(activeRegistrationEvent);
+      updateRegistrationSummary(activeRegistrationEvent);
+      document.getElementById('registration-form').reset();
+      document.getElementById('registration-status').textContent = '';
+      document.getElementById('registration-payment-link').classList.remove('active');
+      document.querySelector('#registration-form button[type="submit"]').textContent = 'Submit Registration →';
+      const modal = document.getElementById('registration-modal');
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      const firstField = document.querySelector('#registration-fields input, #registration-fields textarea');
+      if (firstField) firstField.focus();
+    }
+
+    function closeRegistration() {
+      const modal = document.getElementById('registration-modal');
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function registrationPayload(form) {
+      const submittedAt = new Date().toISOString();
+      document.getElementById('reg-submitted-at').value = submittedAt;
+      const registrationEvent = activeRegistrationEvent || fallbackRegistrationEvent;
+      const answers = {};
+      (registrationEvent.registration?.questions || []).forEach(question => {
+        const field = form.elements[question.id];
+        if (!field) return;
+        answers[question.id] = {
+          label: question.label,
+          value: question.type === 'checkbox' ? (field.checked ? 'I Understand' : '') : String(field.value || '').trim()
+        };
+      });
+      return {
+        submitted_at: submittedAt,
+        event_id: registrationEvent.id,
+        event_name: registrationEvent.title,
+        event_date: registrationEvent.dateLabel,
+        start_time: registrationEvent.timeLabel,
+        location: registrationEvent.location,
+        answers: answers,
+        payment_status: 'pending'
+      };
+    }
+
+    function validateRegistration(payload) {
+      const registrationEvent = activeRegistrationEvent || fallbackRegistrationEvent;
+      const questions = registrationEvent.registration?.questions || [];
+      for (const question of questions) {
+        const answer = payload.answers[question.id]?.value || '';
+        if (question.required && !answer) return 'Please complete: ' + question.label;
+        if (question.type === 'number' && answer) {
+          const value = Number(answer);
+          if (question.min !== null && question.min !== undefined && value < question.min) return question.label + ' must be at least ' + question.min + '.';
+          if (question.max !== null && question.max !== undefined && value > question.max) return question.label + ' must be no more than ' + question.max + '.';
+        }
+      }
+      return '';
+    }
+
+    async function saveRegistration(payload) {
+      const stored = JSON.parse(localStorage.getItem('RHM_registrations') || '[]');
+      stored.push(payload);
+      localStorage.setItem('RHM_registrations', JSON.stringify(stored));
+
+      await window.RHMEventsStore.submitRegistration(payload);
+    }
+
+    function paymentHref(payload) {
+      const link = activeRegistrationEvent?.registration?.paymentLink || '';
+      if (!link) return '';
+      const params = new URLSearchParams({
+        client_reference_id: payload.event_id
+      });
+      const emailAnswer = payload.answers.email?.value;
+      if (emailAnswer) params.set('prefilled_email', emailAnswer);
+      return link + (link.includes('?') ? '&' : '?') + params.toString();
+    }
+
+    async function handleRegistrationSubmit(event) {
+      event.preventDefault();
+      const form = event.target;
+      const status = document.getElementById('registration-status');
+      const paymentLink = document.getElementById('registration-payment-link');
+      const payload = registrationPayload(form);
+      const error = validateRegistration(payload);
+
+      if (error) {
+        status.textContent = error;
+        return;
+      }
+
+      try {
+        await saveRegistration(payload);
+        const href = paymentHref(payload);
+        if (href) {
+          paymentLink.href = href;
+          paymentLink.classList.add('active');
+          status.textContent = 'Registration received. Use the payment button to confirm your team.';
+        } else {
+          paymentLink.classList.remove('active');
+          status.textContent = 'Registration received. Payment link will be added once Stripe is connected.';
+        }
+        form.querySelector('button[type="submit"]').textContent = 'Registration Submitted';
+      } catch (err) {
+        console.error(err);
+        status.textContent = 'Registration saved on this device, but online sync failed. Please contact RHM if this continues.';
+      }
+    }
+
     async function hydratePublicEvents() {
       if (!window.RHM_SUPABASE_READY) return;
       const events = await window.RHMEventsStore.listPublishedEvents();
       if (!events.length) return;
+      publicEvents = events;
       document.getElementById('events-list').innerHTML = events.map(renderPublicEvent).join('');
     }
 
     hydratePublicEvents().catch(error => console.error(error));
+    document.addEventListener('click', event => {
+      const trigger = event.target.closest('[data-register-event]');
+      if (trigger) openRegistration(event);
+      if (event.target.matches('[data-close-registration]') || event.target.id === 'registration-modal') closeRegistration();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeRegistration();
+    });
+    document.getElementById('registration-form').addEventListener('submit', handleRegistrationSubmit);
   </script>
   <script>
     const obs = new IntersectionObserver(entries => {

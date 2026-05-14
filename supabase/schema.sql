@@ -15,11 +15,28 @@ create table if not exists public.events (
   event_time time,
   location text,
   description text,
+  registration jsonb not null default '{"enabled":false,"paymentRequired":false,"paymentLink":"","questions":[]}'::jsonb,
   is_published boolean not null default true,
   created_by uuid references auth.users(id) on delete set null,
   updated_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+alter table public.events
+add column if not exists registration jsonb not null default '{"enabled":false,"paymentRequired":false,"paymentLink":"","questions":[]}'::jsonb;
+
+create table if not exists public.registrations (
+  id uuid primary key default gen_random_uuid(),
+  event_id text not null,
+  event_name text not null,
+  event_date text,
+  start_time text,
+  location text,
+  answers jsonb not null default '{}'::jsonb,
+  payment_status text not null default 'pending' check (payment_status in ('pending', 'paid', 'failed', 'waived')),
+  submitted_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.tournament_state (
@@ -73,6 +90,7 @@ $$;
 
 alter table public.admin_profiles enable row level security;
 alter table public.events enable row level security;
+alter table public.registrations enable row level security;
 alter table public.tournament_state enable row level security;
 
 drop policy if exists "Admins can read admin profiles" on public.admin_profiles;
@@ -101,6 +119,28 @@ drop policy if exists "Admins can manage events" on public.events;
 create policy "Admins can manage events"
 on public.events
 for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Public can submit registrations" on public.registrations;
+create policy "Public can submit registrations"
+on public.registrations
+for insert
+to anon, authenticated
+with check (true);
+
+drop policy if exists "Admins can read registrations" on public.registrations;
+create policy "Admins can read registrations"
+on public.registrations
+for select
+to authenticated
+using (public.is_admin());
+
+drop policy if exists "Admins can manage registrations" on public.registrations;
+create policy "Admins can manage registrations"
+on public.registrations
+for update
 to authenticated
 using (public.is_admin())
 with check (public.is_admin());

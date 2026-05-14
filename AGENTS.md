@@ -1,23 +1,15 @@
 <claude-mem-context>
 # Memory Context
 
-# [RHM-SITE] recent context, 2026-05-14 8:50am EDT
+# [RHM-SITE] recent context, 2026-05-14 9:21am EDT
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (21,441t read) | 1,518,139t work | 99% savings
+Stats: 50 obs (20,851t read) | 1,542,069t work | 99% savings
 
 ### May 13, 2026
-140 11:47a 🔵 Non-transitive comparator bug in tournament-standings.js compareRows for 3-way head-to-head cycles
-142 " 🔵 compareRows Head-to-Head Is Non-Transitive for 3+ Team Cycles
-143 11:48a 🔵 Pairwise H2H Sort Instability Confirmed Across All 6 Team Input Permutations
-144 " 🔴 Cohort-Aware rankRows Replaces Non-Transitive Pairwise H2H in Array.sort
-145 " 🔴 Multi-Team Standings Tie Stability Fix Verified Green — 24/24 Tests Pass
-146 " ✅ Stability Fix Committed as 1a02145 on codex/tournament-manager
-153 11:49a 🔵 Tournament Standings Sort Logic Spec Verification (Task 3)
-148 " 🔵 Duplicate fix commits for h2h transitive comparator — two commits for same change (e6af7e6, 1a02145)
 149 11:50a ✅ Task 3 tournament-standings.js spec compliance APPROVED after all quality fixes
 150 " ✅ Task 3 code quality APPROVED — tournament-standings.js ready, Task 4 next
 151 11:51a ✅ Tournament manager plan: Tasks 1–3 completed, Task 4 (draft and publish store) now in progress
@@ -60,6 +52,15 @@ Stats: 50 obs (21,441t read) | 1,518,139t work | 99% savings
 189 " 🔵 Tournament Manager Code Review – APPROVED, No Blocking Issues Found
 190 5:57p 🟣 Playoff bracket shows TBD until all group games complete
 191 " 🔵 Two separate seed-gating options exist in projectSeeds()
+### May 14, 2026
+192 8:39a 🟣 RHM Logo in Header Links Back to Main Page
+193 8:51a 🔵 RHM Logo Navigation: Public Pages Already Linked, Admin and Live Pages Are Not
+194 " 🔵 tournament-live.html Header Structure: Logo in header-left div, No Link
+195 " 🔵 Admin Nav Logo Structure: All Three Admin Pages Use Same nav-left Pattern
+196 " 🟣 RHM Logo Now Links to Home Page on All Pages
+197 " 🟣 Logo Home Link Verified: All 4 Files Patched and Tests Pass
+198 " 🟣 Event Registration Intake Form with Stripe Payment — Planned
+199 9:02a 🔵 Codebase State for New Features: Founders Section and Register Now Buttons Located
 
-Access 1518k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 1542k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
