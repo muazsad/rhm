@@ -183,9 +183,22 @@
     var client = readyClient();
     if (!client) return null;
 
-    var response = await client.from('registrations').insert(payload).select('*').single();
+    var response = await client.from('registrations').insert(payload);
     if (response.error) throw response.error;
-    return response.data;
+    return true;
+  }
+
+  async function listRegistrations() {
+    var client = readyClient();
+    if (!client) return [];
+
+    var response = await client
+      .from('registrations')
+      .select('*')
+      .order('submitted_at', { ascending: false });
+
+    if (response.error) throw response.error;
+    return response.data || [];
   }
 
   window.RHMEventsStore = {
@@ -196,6 +209,7 @@
     listAdminEvents: listAdminEvents,
     createEvent: createEvent,
     deleteEvent: deleteEvent,
-    submitRegistration: submitRegistration
+    submitRegistration: submitRegistration,
+    listRegistrations: listRegistrations
   };
 })(window);

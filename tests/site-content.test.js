@@ -40,10 +40,20 @@ test('admin events page includes a registration form builder', () => {
     'id="reg-payment-required"',
     'id="reg-payment-link"',
     'id="reg-builder"',
+    'id="registrations-list"',
     'addRegistrationQuestion',
     'collectRegistrationConfig',
-    'defaultRegistrationQuestions'
+    'defaultRegistrationQuestions',
+    'renderRegistrations'
   ].forEach(text => assert.ok(adminEvents.includes(text), `${text} missing from admin events page`));
+});
+
+test('event store inserts registrations without requiring public select', () => {
+  const store = readPage('assets/js/events-store.js');
+
+  assert.ok(store.includes(".from('registrations').insert(payload)"));
+  assert.equal(store.includes(".from('registrations').insert(payload).select"), false);
+  assert.ok(store.includes('listRegistrations'));
 });
 
 test('supabase schema supports event registration forms and submissions', () => {

@@ -276,6 +276,59 @@
     .badge-soon { background: rgba(255,190,0,0.12); color: #fbbe00; }
 
     .event-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+    .registrations-panel {
+      margin-top: 2rem;
+      background: var(--surface);
+      border: 1px solid #1e1e1e;
+      padding: 1.5rem;
+    }
+    .registrations-list {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .registration-card {
+      border: 1px solid #242424;
+      background: #0d0d0d;
+      padding: 1rem;
+    }
+    .registration-card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.85rem;
+    }
+    .registration-team {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.2rem;
+      letter-spacing: 0.06em;
+      color: var(--white);
+    }
+    .registration-time {
+      color: var(--muted);
+      font-size: 11px;
+      text-align: right;
+    }
+    .registration-answers {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.7rem 1rem;
+    }
+    .answer-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 0.2rem;
+    }
+    .answer-value {
+      color: rgba(242,242,238,0.72);
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
 
     .btn-edit,
     .btn-delete {
@@ -300,6 +353,7 @@
 
     @media (max-width: 900px) {
       .layout { grid-template-columns: 1fr; }
+      .registration-answers { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -430,6 +484,16 @@
       </div>
 
     </div>
+
+    <section class="registrations-panel">
+      <div class="list-header">
+        <div class="list-title">Registrations</div>
+        <span class="event-count" id="registration-count">0 submissions</span>
+      </div>
+      <div class="registrations-list" id="registrations-list">
+        <div class="event-card">No registrations yet.</div>
+      </div>
+    </section>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -562,6 +626,56 @@
       `;
     }
 
+    function answerEntries(registration) {
+      const answers = registration.answers || {};
+      return Object.keys(answers).map(key => {
+        const answer = answers[key] || {};
+        return {
+          label: answer.label || key,
+          value: answer.value || ''
+        };
+      });
+    }
+
+    function primaryRegistrationName(registration) {
+      const answers = registration.answers || {};
+      return answers.team_name?.value ||
+        [answers.first_name?.value, answers.last_name?.value].filter(Boolean).join(' ') ||
+        registration.event_name ||
+        'Registration';
+    }
+
+    function renderRegistrations(registrations) {
+      const list = document.getElementById('registrations-list');
+      const count = document.getElementById('registration-count');
+      count.textContent = registrations.length + ' submission' + (registrations.length !== 1 ? 's' : '');
+
+      if (!registrations.length) {
+        list.innerHTML = '<div class="event-card">No registrations yet.</div>';
+        return;
+      }
+
+      list.innerHTML = registrations.map(registration => `
+        <div class="registration-card">
+          <div class="registration-card-head">
+            <div>
+              <div class="registration-team">${eh(primaryRegistrationName(registration))}</div>
+              <div class="event-meta"><span>${eh(registration.event_name || '')}</span><span>${eh(registration.payment_status || 'pending')}</span></div>
+            </div>
+            <div class="registration-time">${registration.submitted_at ? eh(new Date(registration.submitted_at).toLocaleString()) : ''}</div>
+          </div>
+          <div class="registration-answers">
+            ${answerEntries(registration).map(answer => `
+              <div>
+                <span class="answer-label">${eh(answer.label)}</span>
+                <div class="answer-value">${eh(answer.value)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
     function renderEvents(events) {
       const list = document.getElementById('events-list');
       list.innerHTML = '';
@@ -629,6 +743,7 @@
       const admin = await window.RHMAdminAuth.requireAdmin();
       if (!admin) return;
       renderEvents(await window.RHMEventsStore.listAdminEvents());
+      renderRegistrations(await window.RHMEventsStore.listRegistrations());
       registrationQuestions = defaultRegistrationQuestions();
       renderRegistrationBuilder();
     }
