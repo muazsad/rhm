@@ -362,15 +362,90 @@ test('generateDivisionSchedule packs two five-team groups across three fields', 
   assert.equal(groupFixtures.length, 20);
   assert.equal(groupSlots.length, 7);
 
-  groupSlots.forEach((slot, index) => {
+  groupSlots.forEach((slot) => {
     const gamesInSlot = groupFixtures.filter(fixture => fixture.slot === slot);
-    const expectedGames = index === groupSlots.length - 1 ? 2 : 3;
-    assert.equal(gamesInSlot.length, expectedGames);
+    assert.ok(gamesInSlot.length <= 3);
   });
 
-  groupSlots.forEach((slot, index) => {
+  groupSlots.forEach((slot) => {
     const gamesInSlot = groupFixtures.filter(fixture => fixture.slot === slot);
-    const expectedFields = index === groupSlots.length - 1 ? [0, 1] : [0, 1, 2];
+    const expectedFields = Array.from({ length: gamesInSlot.length }, (_, index) => index);
     assert.equal(JSON.stringify(gamesInSlot.map(fixture => fixture.venueIndex)), JSON.stringify(expectedFields));
   });
+
+  const slotsByTeam = {};
+  groupFixtures.forEach(fixture => {
+    [fixture.teamA, fixture.teamB].forEach(team => {
+      slotsByTeam[team] = slotsByTeam[team] || [];
+      slotsByTeam[team].push(fixture.slot);
+    });
+  });
+
+  Object.entries(slotsByTeam).forEach(([team, slots]) => {
+    const ordered = [...new Set(slots)].sort((a, b) => a - b);
+    for (let i = 2; i < ordered.length; i++) {
+      assert.notEqual(
+        ordered[i - 2] + 1 === ordered[i - 1] && ordered[i - 1] + 1 === ordered[i],
+        true,
+        `${team} plays three consecutive slots: ${ordered.join(', ')}`
+      );
+    }
+  });
+});
+
+test('generateDivisionSchedule never schedules a team three slots in a row', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-engine.js', sandbox);
+
+  const result = sandbox.window.RHMTournamentEngine.generateDivisionSchedule({
+    divisionId: 'division-main',
+    settings: {
+      startTime: '10:00',
+      gameDuration: 25,
+      breakBetween: 5,
+      breakBeforePlayoffs: 30,
+      playoffGameDuration: 30,
+      advancePerGroup: 2,
+      numFields: 3
+    },
+    venues: [
+      { id: 'field-1', name: 'Field 1' },
+      { id: 'field-2', name: 'Field 2' },
+      { id: 'field-3', name: 'Field 3' }
+    ],
+    groups: [
+      { id: 'group-a', name: 'Group A', teams: ['Team 1', 'Team 2', 'Team 3', 'Team 4'] },
+      { id: 'group-b', name: 'Group B', teams: ['Team 5', 'Team 6', 'Team 7', 'Team 8'] }
+    ],
+    blockedWindows: []
+  });
+
+  const groupFixtures = result.fixtures.filter(fixture => fixture.phase === 'group');
+  const slotsByTeam = {};
+  let backToBackPairs = 0;
+
+  groupFixtures.forEach(fixture => {
+    [fixture.teamA, fixture.teamB].forEach(team => {
+      slotsByTeam[team] = slotsByTeam[team] || [];
+      slotsByTeam[team].push(fixture.slot);
+    });
+  });
+
+  Object.entries(slotsByTeam).forEach(([team, slots]) => {
+    const ordered = [...new Set(slots)].sort((a, b) => a - b);
+    for (let i = 1; i < ordered.length; i++) {
+      if (ordered[i - 1] + 1 === ordered[i]) backToBackPairs++;
+    }
+    for (let i = 2; i < ordered.length; i++) {
+      assert.notEqual(
+        ordered[i - 2] + 1 === ordered[i - 1] && ordered[i - 1] + 1 === ordered[i],
+        true,
+        `${team} plays three consecutive slots: ${ordered.join(', ')}`
+      );
+    }
+  });
+
+  const firstFourSlots = [0, 1, 2, 3].map(slot => groupFixtures.filter(fixture => fixture.slot === slot).length);
+  assert.notDeepEqual(firstFourSlots, [3, 3, 3, 3]);
+  assert.ok(backToBackPairs <= 4, `expected at most 4 back-to-back pairs, got ${backToBackPairs}`);
 });

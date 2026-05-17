@@ -208,6 +208,15 @@
     return teamsForFixture(fixture).filter(function (team) { return previous.has(team); }).length;
   }
 
+  function createsThirdConsecutive(fixture, scheduled, slot) {
+    if (slot < 2) return false;
+    var previous = slotTeams(scheduled, slot - 1);
+    var twoBack = slotTeams(scheduled, slot - 2);
+    return teamsForFixture(fixture).some(function (team) {
+      return previous.has(team) && twoBack.has(team);
+    });
+  }
+
   function availableVenuesForSlot(venues, slot, scheduled, blockedWindows) {
     return venues.filter(function (venue) {
       if (isBlocked(venue.id, slot, blockedWindows)) return false;
@@ -224,47 +233,23 @@
     });
   }
 
-  function scoreSlotCombo(combo, scheduled, slot) {
-    var backToBack = 0;
-    combo.forEach(function (fixture) {
-      backToBack += backToBackCount(fixture, scheduled, slot);
-    });
-    var groupSpread = new Set(combo.map(function (fixture) { return fixture.groupId || fixture.groupName || ''; })).size;
-    return (combo.length * 1000000) + (groupSpread * 1000) - backToBack;
-  }
-
-  function findBestSlotCombo(remaining, maxGames, scheduled, slot) {
+  function enumerateSlotCombos(remaining, maxGames, scheduled, slot, limit) {
     var candidates = remaining.filter(function (fixture) {
       if (fixtureHasTeamConflict(fixture, scheduled, slot)) return false;
-      return true;
+      return !createsThirdConsecutive(fixture, scheduled, slot);
     }).sort(function (a, b) {
       return backToBackCount(a, scheduled, slot) - backToBackCount(b, scheduled, slot);
     });
 
-    var best = [];
-    var bestScore = -Infinity;
+    var combos = [];
     var nodeCount = 0;
-    var nodeLimit = 50000;
-
-    function consider(combo) {
-      var score = scoreSlotCombo(combo, scheduled, slot);
-      if (score > bestScore) {
-        best = combo.slice();
-        bestScore = score;
-      }
-    }
+    var nodeLimit = 75000;
 
     function search(start, combo) {
       nodeCount++;
-      if (nodeCount > nodeLimit) {
-        consider(combo);
-        return;
-      }
-      if (combo.length === maxGames || start >= candidates.length) {
-        consider(combo);
-        return;
-      }
-      if (combo.length + (candidates.length - start) < Math.min(maxGames, best.length + 1)) return;
+      if (nodeCount > nodeLimit) return;
+      if (combo.length) combos.push(combo.slice());
+      if (combo.length === maxGames || start >= candidates.length) return;
 
       for (var i = start; i < candidates.length; i++) {
         var candidate = candidates[i];
@@ -273,64 +258,225 @@
         search(i + 1, combo);
         combo.pop();
       }
-      consider(combo);
     }
 
     search(0, []);
-    return best;
+    combos.sort(function (a, b) {
+      if (b.length !== a.length) return b.length - a.length;
+      var backToBackDiff = comboBackToBackCount(a, scheduled, slot) - comboBackToBackCount(b, scheduled, slot);
+      if (backToBackDiff !== 0) return backToBackDiff;
+      return groupCount(a) - groupCount(b);
+    });
+    return combos.slice(0, limit || 80);
+  }
+
+  function groupCount(combo) {
+    return new Set(combo.map(function (fixture) { return fixture.groupId || fixture.groupName || ''; })).size;
+  }
+
+  function comboBackToBackCount(combo, scheduled, slot) {
+    return combo.reduce(function (total, fixture) {
+      return total + backToBackCount(fixture, scheduled, slot);
+    }, 0);
+  }
+
+  function sortScheduleStates(a, b) {
+    if (a.remaining.length !== b.remaining.length) return a.remaining.length - b.remaining.length;
+    if (a.backToBack !== b.backToBack) return a.backToBack - b.backToBack;
+    if (a.slot !== b.slot) return a.slot - b.slot;
+    return a.placed.length - b.placed.length;
+  }
+
+  function pruneScheduleStates(states, beamWidth) {
+    var buckets = {};
+    states.forEach(function (state) {
+      var key = String(state.remaining.length);
+      buckets[key] = buckets[key] || [];
+      buckets[key].push(state);
+    });
+
+    var kept = [];
+    Object.keys(buckets).forEach(function (key) {
+      buckets[key].sort(function (a, b) {
+        if (a.backToBack !== b.backToBack) return a.backToBack - b.backToBack;
+        if (a.slot !== b.slot) return a.slot - b.slot;
+        return b.placed.length - a.placed.length;
+      });
+      kept = kept.concat(buckets[key].slice(0, Math.max(20, Math.floor(beamWidth / 6))));
+    });
+
+    kept.sort(sortScheduleStates);
+    return kept.slice(0, beamWidth);
+  }
+
+  function recentTeamKey(scheduled, slot) {
+    return [slot - 1, slot - 2].map(function (recentSlot) {
+      return Array.from(slotTeams(scheduled, recentSlot)).sort().join(',');
+    }).join('|');
+  }
+
+  function exactScheduleFixtures(fixtures, venues, blockedWindows, settings, startSlot, existing) {
+    var best = null;
+    var seen = {};
+    var maxVenueCount = Math.max(1, venues.length);
+    var nodeCount = 0;
+    var nodeLimit = 250000;
+
+    function stateKey(remaining, scheduled, slot) {
+      return remaining.map(function (fixture) { return fixture.id; }).sort().join(',') + '::' + slot + '::' + recentTeamKey(scheduled, slot);
+    }
+
+    function placeCombo(state, combo, availableVenues) {
+      var currentPlaced = combo.map(function (selected, index) {
+        var venue = availableVenues[index];
+        return Object.assign({}, selected, {
+          venueId: venue.id,
+          venueName: venue.name,
+          venueIndex: venue.index,
+          slot: state.slot,
+          startsAt: startsAtForSlot(settings, state.slot)
+        });
+      });
+      var placedIds = new Set(currentPlaced.map(function (fixture) { return fixture.id; }));
+      return {
+        remaining: state.remaining.filter(function (fixture) { return !placedIds.has(fixture.id); }),
+        scheduled: state.scheduled.concat(currentPlaced),
+        placed: state.placed.concat(currentPlaced),
+        slot: state.slot + 1,
+        backToBack: state.backToBack + comboBackToBackCount(combo, state.scheduled, state.slot)
+      };
+    }
+
+    function search(state) {
+      nodeCount++;
+      if (nodeCount > nodeLimit) return;
+
+      if (!state.remaining.length) {
+        if (!best || state.slot < best.slot || (state.slot === best.slot && state.backToBack < best.backToBack)) {
+          best = state;
+        }
+        return;
+      }
+
+      if (best) {
+        var optimisticFinish = state.slot + Math.ceil(state.remaining.length / maxVenueCount);
+        if (optimisticFinish > best.slot) return;
+        if (optimisticFinish === best.slot && state.backToBack >= best.backToBack) return;
+      }
+
+      var key = stateKey(state.remaining, state.scheduled, state.slot);
+      if (seen[key] !== undefined && seen[key] <= state.backToBack) return;
+      seen[key] = state.backToBack;
+
+      var availableVenues = availableVenuesForSlot(venues, state.slot, state.scheduled, blockedWindows);
+      if (!availableVenues.length) {
+        search(Object.assign({}, state, { slot: state.slot + 1 }));
+        return;
+      }
+
+      var combos = enumerateSlotCombos(state.remaining, availableVenues.length, state.scheduled, state.slot, 10000);
+      if (!combos.length) {
+        search(Object.assign({}, state, { slot: state.slot + 1 }));
+        return;
+      }
+
+      combos.forEach(function (combo) {
+        search(placeCombo(state, combo, availableVenues));
+      });
+    }
+
+    search({
+      remaining: fixtures.slice(),
+      scheduled: existing,
+      placed: [],
+      slot: startSlot,
+      backToBack: 0
+    });
+
+    return best ? best.placed : null;
   }
 
   function scheduleFixtures(fixtures, options) {
     var settings = options.settings || {};
     var venues = normalizeVenues(options.venues || [], settings);
     var blockedWindows = options.blockedWindows || [];
-    var remaining = fixtures.slice();
-    var scheduled = (options.existingFixtures || []).slice();
-    var placed = [];
-    var slot = parseMinutes(options.startSlot, 0);
+    var startSlot = parseMinutes(options.startSlot, 0);
+    var existing = (options.existingFixtures || []).slice();
+    if (fixtures.length <= 14 && !existing.length) {
+      var exact = exactScheduleFixtures(fixtures, venues, blockedWindows, settings, startSlot, existing);
+      if (exact) return exact;
+    }
+
+    var states = [{
+      remaining: fixtures.slice(),
+      scheduled: existing,
+      placed: [],
+      slot: startSlot,
+      backToBack: 0
+    }];
+    var completed = [];
+    var bestCompletedSlot = Infinity;
+    var beamWidth = parseMinutes(options.beamWidth, 500);
     var safety = 0;
 
-    while (remaining.length > 0 && safety < 10000) {
-      var availableVenues = availableVenuesForSlot(venues, slot, scheduled, blockedWindows);
-      var currentPlaced = [];
+    while (states.length > 0 && safety < 10000) {
+      var nextStates = [];
 
-      if (availableVenues.length) {
-        var combo = findBestSlotCombo(remaining, availableVenues.length, scheduled, slot);
+      states.forEach(function (state) {
+        if (!state.remaining.length) {
+          completed.push(state);
+          if (state.slot < bestCompletedSlot) bestCompletedSlot = state.slot;
+          return;
+        }
 
-        combo.forEach(function (selected, index) {
-          var venue = availableVenues[index];
-          var fixture = Object.assign({}, selected, {
-            venueId: venue.id,
-            venueName: venue.name,
-            venueIndex: venue.index,
-            slot: slot,
-            startsAt: startsAtForSlot(settings, slot)
+        if (state.slot >= bestCompletedSlot) return;
+
+        var availableVenues = availableVenuesForSlot(venues, state.slot, state.scheduled, blockedWindows);
+        if (!availableVenues.length) {
+          nextStates.push(Object.assign({}, state, { slot: state.slot + 1 }));
+          return;
+        }
+
+        var combos = enumerateSlotCombos(state.remaining, availableVenues.length, state.scheduled, state.slot);
+        if (!combos.length) {
+          nextStates.push(Object.assign({}, state, { slot: state.slot + 1 }));
+          return;
+        }
+
+        combos.forEach(function (combo) {
+          var currentPlaced = combo.map(function (selected, index) {
+            var venue = availableVenues[index];
+            return Object.assign({}, selected, {
+              venueId: venue.id,
+              venueName: venue.name,
+              venueIndex: venue.index,
+              slot: state.slot,
+              startsAt: startsAtForSlot(settings, state.slot)
+            });
           });
-
-          currentPlaced.push(fixture);
-          placed.push(fixture);
-        });
-
-        currentPlaced.forEach(function (fixture) {
-          var remainingIndex = remaining.findIndex(function (candidate) {
-            return candidate.id === fixture.id;
+          var placedIds = new Set(currentPlaced.map(function (fixture) { return fixture.id; }));
+          nextStates.push({
+            remaining: state.remaining.filter(function (fixture) { return !placedIds.has(fixture.id); }),
+            scheduled: state.scheduled.concat(currentPlaced),
+            placed: state.placed.concat(currentPlaced),
+            slot: state.slot + 1,
+            backToBack: state.backToBack + comboBackToBackCount(combo, state.scheduled, state.slot)
           });
-          if (remainingIndex !== -1) remaining.splice(remainingIndex, 1);
         });
-      }
+      });
 
-      if (!currentPlaced.length) {
-        slot++;
-        safety++;
-        continue;
-      }
-
-      scheduled = scheduled.concat(currentPlaced);
-      slot++;
+      states = pruneScheduleStates(nextStates, beamWidth);
       safety++;
     }
 
-    return placed;
+    completed = completed.concat(states.filter(function (state) { return !state.remaining.length; }));
+    if (!completed.length) return [];
+    completed.sort(function (a, b) {
+      if (a.slot !== b.slot) return a.slot - b.slot;
+      if (a.backToBack !== b.backToBack) return a.backToBack - b.backToBack;
+      return a.placed.length - b.placed.length;
+    });
+    return completed[0].placed;
   }
 
   function groupShortCode(group, index) {
