@@ -359,15 +359,17 @@
           <div class="f-grid-2">
             <div class="f-row">
               <label class="f-label" for="t-start">Start Time</label>
-              <input class="f-input" id="t-start" type="time" value="10:00">
+              <input class="f-input" id="t-start" type="text" inputmode="numeric" value="10:00 AM" placeholder="10:00 AM" onblur="normalizeStartTimeInput()">
             </div>
             <div class="f-row">
-              <label class="f-label" for="t-playoff">Playoff Format</label>
-              <select class="f-select" id="t-playoff">
-                <option value="top1">Top 1 per group</option>
-                <option value="top2" selected>Top 2 per group</option>
-                <option value="top4">Top 4 per group</option>
-              </select>
+              <label class="f-label" for="t-advance">Teams Advancing Per Group</label>
+              <input class="f-input" id="t-advance" type="number" min="1" max="16" value="2" list="advance-options">
+              <datalist id="advance-options">
+                <option value="1"></option>
+                <option value="2"></option>
+                <option value="3"></option>
+                <option value="4"></option>
+              </datalist>
             </div>
           </div>
           <div class="f-grid-2">
@@ -465,7 +467,6 @@
 <script src="assets/js/tournament-store.js"></script>
 <script>
 const GL = ['A','B','C','D'];
-const ADV = { top1:1, top2:2, top4:4 };
 
 let S = mkDefault();
 let draggingFixtureId = null;
@@ -490,7 +491,7 @@ function mkDefault() {
         breakBeforePlayoffs: 30,
         playoffGameDuration: 25,
         startTime: '10:00',
-        playoffFormat: 'top2',
+        advancePerGroup: 2,
         winPoints: 3,
         drawPoints: 1,
         lossPoints: 0,
@@ -515,6 +516,45 @@ function mkDefault() {
 function activeDivision() {
   if (!S.divisions || !S.divisions.length) S = mkDefault();
   return S.divisions[0];
+}
+
+function parseTimeToMinutes(value, fallback = 600) {
+  if (window.RHMTournamentEngine?.parseTimeToMinutes) {
+    return window.RHMTournamentEngine.parseTimeToMinutes(value, fallback);
+  }
+  const match = String(value || '').trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  if (!match) return fallback;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const meridiem = match[3]?.toUpperCase();
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return fallback;
+  if (meridiem) {
+    hours = hours % 12;
+    if (meridiem === 'PM') hours += 12;
+  }
+  return (hours * 60) + minutes;
+}
+
+function formatTimeDisplay(value) {
+  const minutes = typeof value === 'number' ? value : parseTimeToMinutes(value, 600);
+  if (window.RHMTournamentEngine?.formatTime12) return window.RHMTournamentEngine.formatTime12(minutes);
+  const h24 = Math.floor(minutes / 60) % 24;
+  const h12 = h24 % 12 || 12;
+  return h12 + ':' + String(minutes % 60).padStart(2, '0') + ' ' + (h24 >= 12 ? 'PM' : 'AM');
+}
+
+function normalizeStartTimeInput() {
+  const input = document.getElementById('t-start');
+  if (input) input.value = formatTimeDisplay(input.value || '10:00 AM');
+}
+
+function advancePerGroupFromSettings(settings = activeDivision().settings || {}) {
+  if (window.RHMTournamentEngine?.parseAdvance) {
+    return window.RHMTournamentEngine.parseAdvance(settings, activeDivision().groups?.length || 0);
+  }
+  const legacy = { top1: 1, top2: 2, top3: 3, top4: 4 };
+  const raw = settings.advancePerGroup ?? legacy[settings.playoffFormat] ?? 2;
+  return Math.max(1, Math.min(16, parseInt(raw, 10) || 2));
 }
 
 function migrateLoadedState(state) {
@@ -560,7 +600,7 @@ function syncLegacyTournamentFields() {
   const settings = div.settings || {};
   const groups = div.groups || [];
   const venues = div.venues || [];
-  const advance = ADV[settings.playoffFormat] || 2;
+  const advance = advancePerGroupFromSettings(settings);
 
   S.settings = Object.assign({}, settings, {
     name: S.settings?.name || '',
@@ -626,8 +666,8 @@ function readSettings() {
     breakBetween: parseInt(document.getElementById('t-break').value) || 5,
     breakBeforePlayoffs: parseInt(document.getElementById('t-break-po').value) || 0,
     playoffGameDuration: parseInt(document.getElementById('t-po-duration').value) || 25,
-    startTime: document.getElementById('t-start').value || '10:00',
-    playoffFormat: document.getElementById('t-playoff').value,
+    startTime: formatTimeDisplay(document.getElementById('t-start').value || '10:00 AM'),
+    advancePerGroup: Math.max(1, Math.min(16, parseInt(document.getElementById('t-advance').value) || 2)),
     winPoints: parseInt(document.getElementById('t-win-points').value) || 0,
     drawPoints: parseInt(document.getElementById('t-draw-points').value) || 0,
     lossPoints: parseInt(document.getElementById('t-loss-points').value) || 0,
@@ -659,8 +699,8 @@ function applySettings(cfg) {
   document.getElementById('t-break').value = settings.breakBetween || 5;
   document.getElementById('t-break-po').value = settings.breakBeforePlayoffs ?? 30;
   document.getElementById('t-po-duration').value = settings.playoffGameDuration || 25;
-  document.getElementById('t-start').value = settings.startTime || '10:00';
-  document.getElementById('t-playoff').value = settings.playoffFormat || 'top2';
+  document.getElementById('t-start').value = formatTimeDisplay(settings.startTime || '10:00 AM');
+  document.getElementById('t-advance').value = advancePerGroupFromSettings(settings);
   document.getElementById('t-win-points').value = settings.winPoints ?? 3;
   document.getElementById('t-draw-points').value = settings.drawPoints ?? 1;
   document.getElementById('t-loss-points').value = settings.lossPoints ?? 0;
@@ -873,7 +913,7 @@ function renderSchedule() {
 
   const slots = [...new Set(fixtures.map(g => g.slot))].sort((a,b)=>a-b);
   const timeOf = {};
-  fixtures.forEach(g => { timeOf[g.slot] = g.startsAt; });
+  fixtures.forEach(g => { timeOf[g.slot] = formatTimeDisplay(g.startsAt); });
   const venues = (div.venues && div.venues.length) ? div.venues : [];
   const summary = div.scheduleSummary || {
     totalFixtures: fixtures.length,
@@ -986,7 +1026,7 @@ function computeStandings() {
 
 function projectedSeeds(standings) {
   const div = activeDivision();
-  const advance = ADV[(div.settings || {}).playoffFormat] || 2;
+  const advance = advancePerGroupFromSettings(div.settings || {});
   return window.RHMTournamentStandings.projectSeeds({
     standings: standings || computeStandings(),
     seedOverrides: div.seedOverrides || [],
@@ -1000,7 +1040,7 @@ function projectedSeeds(standings) {
 function renderBracketTab() {
   const div = activeDivision();
   const standings = computeStandings();
-  const advance = ADV[div.settings.playoffFormat] || 2;
+  const advance = advancePerGroupFromSettings(div.settings || {});
 
   // Standings tables
   let html = '';
@@ -1155,13 +1195,13 @@ function fixturePhaseLabel(fixture) {
 
 function resolveSeedSide(side, seeds) {
   if (!side) return 'TBD';
-  if (!seeds || !seeds.length) return 'TBD';
   if (side.sourceFixtureId) {
     const source = (activeDivision().fixtures || []).find(fixture => fixture.id === side.sourceFixtureId);
-    return source?.winner || 'TBD';
+    return source?.winner || side.label || 'TBD';
   }
+  if (!seeds || !seeds.length) return side.label || 'TBD';
   const seed = (seeds || []).find(item => item.groupId === side.groupId && item.seed === side.seed);
-  return seed?.team || 'TBD';
+  return seed?.team || side.label || 'TBD';
 }
 
 function fixtureTeamLabel(fixture, side, seeds) {

@@ -1,6 +1,6 @@
 (function (window) {
   var GL = ['A', 'B', 'C', 'D'];
-  var ADV = { top1: 1, top2: 2, top4: 4 };
+  var ADV = { top1: 1, top2: 2, top3: 3, top4: 4 };
 
   function cleanTeams(group) {
     var teams = Array.isArray(group) ? group : (group.teams || []);
@@ -16,15 +16,55 @@
     return parseMinutes(settings.gameDuration, 25) + parseMinutes(settings.breakBetween, 0);
   }
 
-  function formatTime(totalMinutes) {
+  function getPlayoffBlockMinutes(settings) {
+    return parseMinutes(settings.playoffGameDuration, parseMinutes(settings.gameDuration, 25)) + parseMinutes(settings.breakBetween, 0);
+  }
+
+  function formatTime24(totalMinutes) {
     return String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0') + ':' + String(totalMinutes % 60).padStart(2, '0');
   }
 
+  function formatTime12(totalMinutes) {
+    var minutes = ((totalMinutes % 1440) + 1440) % 1440;
+    var hours24 = Math.floor(minutes / 60);
+    var hours12 = hours24 % 12 || 12;
+    var suffix = hours24 >= 12 ? 'PM' : 'AM';
+    return hours12 + ':' + String(minutes % 60).padStart(2, '0') + ' ' + suffix;
+  }
+
+  function parseTimeToMinutes(value, fallback) {
+    var raw = String(value || '').trim();
+    var match = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+    if (!match) return fallback;
+
+    var hours = parseInt(match[1], 10);
+    var minutes = parseInt(match[2] || '0', 10);
+    var meridiem = match[3] ? match[3].toUpperCase() : '';
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes) || minutes < 0 || minutes > 59) return fallback;
+
+    if (meridiem) {
+      if (hours < 1 || hours > 12) return fallback;
+      hours = hours % 12;
+      if (meridiem === 'PM') hours += 12;
+    } else if (hours < 0 || hours > 23) {
+      return fallback;
+    }
+
+    return (hours * 60) + minutes;
+  }
+
   function startsAtForSlot(settings, slot) {
-    var parts = String(settings.startTime || '10:00').split(':').map(Number);
-    var sh = Number.isFinite(parts[0]) ? parts[0] : 10;
-    var sm = Number.isFinite(parts[1]) ? parts[1] : 0;
-    return formatTime((sh * 60) + sm + (slot * getGameBlockMinutes(settings)));
+    var start = parseTimeToMinutes(settings.startTime || '10:00', 600);
+    return formatTime12(start + (slot * getGameBlockMinutes(settings)));
+  }
+
+  function parseAdvance(settings, groupCount) {
+    var config = settings || {};
+    var value = config.advancePerGroup;
+    if (value === undefined || value === null || value === '') value = ADV[config.playoffFormat];
+    var parsed = parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) parsed = 2;
+    return Math.max(1, Math.min(16, parsed));
   }
 
   function normalizeGroups(groups) {
@@ -153,10 +193,6 @@
     });
   }
 
-  function prefersFreshTeams(fixture, previousSlotTeams) {
-    return !teamsForFixture(fixture).some(function (team) { return previousSlotTeams.has(team); });
-  }
-
   function slotTeams(fixtures, slot) {
     var teams = new Set();
     (fixtures || []).forEach(function (fixture) {
@@ -165,15 +201,6 @@
       }
     });
     return teams;
-  }
-
-  function createsThirdConsecutive(fixture, scheduled, slot) {
-    if (slot < 2) return false;
-    var previous = slotTeams(scheduled, slot - 1);
-    var twoBack = slotTeams(scheduled, slot - 2);
-    return teamsForFixture(fixture).some(function (team) {
-      return previous.has(team) && twoBack.has(team);
-    });
   }
 
   function backToBackCount(fixture, scheduled, slot) {
@@ -202,13 +229,14 @@
     combo.forEach(function (fixture) {
       backToBack += backToBackCount(fixture, scheduled, slot);
     });
-    return (combo.length * 1000000) - (backToBack * 1000);
+    var groupSpread = new Set(combo.map(function (fixture) { return fixture.groupId || fixture.groupName || ''; })).size;
+    return (combo.length * 1000000) + (groupSpread * 1000) - backToBack;
   }
 
-  function findBestSlotCombo(remaining, maxGames, scheduled, slot, allowThirdConsecutive) {
+  function findBestSlotCombo(remaining, maxGames, scheduled, slot) {
     var candidates = remaining.filter(function (fixture) {
       if (fixtureHasTeamConflict(fixture, scheduled, slot)) return false;
-      return allowThirdConsecutive || !createsThirdConsecutive(fixture, scheduled, slot);
+      return true;
     }).sort(function (a, b) {
       return backToBackCount(a, scheduled, slot) - backToBackCount(b, scheduled, slot);
     });
@@ -236,7 +264,7 @@
         consider(combo);
         return;
       }
-      if (combo.length + (candidates.length - start) < Math.min(maxGames, best.length)) return;
+      if (combo.length + (candidates.length - start) < Math.min(maxGames, best.length + 1)) return;
 
       for (var i = start; i < candidates.length; i++) {
         var candidate = candidates[i];
@@ -263,13 +291,11 @@
     var safety = 0;
 
     while (remaining.length > 0 && safety < 10000) {
-      var scheduledAtSlot = scheduled.filter(function (fixture) { return fixture.slot === slot; });
       var availableVenues = availableVenuesForSlot(venues, slot, scheduled, blockedWindows);
       var currentPlaced = [];
 
       if (availableVenues.length) {
-        var combo = findBestSlotCombo(remaining, availableVenues.length, scheduled, slot, false);
-        if (!combo.length) combo = findBestSlotCombo(remaining, availableVenues.length, scheduled, slot, true);
+        var combo = findBestSlotCombo(remaining, availableVenues.length, scheduled, slot);
 
         combo.forEach(function (selected, index) {
           var venue = availableVenues[index];
@@ -293,13 +319,7 @@
         });
       }
 
-      if (!currentPlaced.length && scheduledAtSlot.length) {
-        slot++;
-        safety++;
-        continue;
-      }
-
-      if (!currentPlaced.length && !scheduledAtSlot.length && availableVenues.length) {
+      if (!currentPlaced.length) {
         slot++;
         safety++;
         continue;
@@ -313,20 +333,29 @@
     return placed;
   }
 
-  function seedPlaceholder(group, seed) {
+  function groupShortCode(group, index) {
+    var name = String(group.name || '').trim();
+    var groupLetter = name.match(/Group\s+([A-Z0-9]+)/i);
+    if (groupLetter) return groupLetter[1].toUpperCase();
+    return GL[index] || String(index + 1);
+  }
+
+  function seedPlaceholder(group, seed, index) {
+    var shortCode = groupShortCode(group, index);
     return {
       groupId: group.id,
       groupName: group.name,
       seed: seed,
-      label: group.name + ' Seed ' + seed
+      groupCode: shortCode,
+      label: seed + shortCode
     };
   }
 
   function buildOpeningSeeds(groups, advance) {
     var seeds = [];
     for (var seed = 1; seed <= advance; seed++) {
-      groups.forEach(function (group) {
-        seeds.push(seedPlaceholder(group, seed));
+      groups.forEach(function (group, index) {
+        seeds.push(seedPlaceholder(group, seed, index));
       });
     }
     return seeds;
@@ -415,7 +444,7 @@
   function buildPlayoffFixtures(options) {
     var divisionId = options.divisionId || 'division';
     var groups = normalizeGroups(options.groups || []);
-    var advance = ADV[(options.settings || {}).playoffFormat] || 2;
+    var advance = parseAdvance(options.settings || {}, groups.length);
     var fixtures = [];
     var entries = buildOpeningSeeds(groups, advance);
     if (entries.length < 2) return fixtures;
@@ -474,6 +503,28 @@
     return scheduled;
   }
 
+  function applyPlayoffStartTimes(playoffFixtures, settings, groupFixtures) {
+    if (!playoffFixtures.length) return playoffFixtures;
+
+    var groupBlock = getGameBlockMinutes(settings);
+    var playoffBlock = getPlayoffBlockMinutes(settings);
+    var startMinutes = parseTimeToMinutes(settings.startTime || '10:00', 600);
+    var groupEndMinutes = startMinutes + ((maxSlot(groupFixtures) + 1) * groupBlock);
+    var firstPlayoffMinutes = groupEndMinutes + parseMinutes(settings.breakBeforePlayoffs, 0);
+    var playoffSlots = getTimeSlots(playoffFixtures);
+    var slotOffsets = {};
+
+    playoffSlots.forEach(function (slot, index) {
+      slotOffsets[slot] = index;
+    });
+
+    return playoffFixtures.map(function (fixture) {
+      return Object.assign({}, fixture, {
+        startsAt: formatTime12(firstPlayoffMinutes + (slotOffsets[fixture.slot] * playoffBlock))
+      });
+    });
+  }
+
   function generateDivisionSchedule(input) {
     var settings = input.settings || {};
     var divisionId = input.divisionId || 'division';
@@ -501,11 +552,15 @@
       startSlot: playoffStartSlot,
       existingFixtures: scheduledGroups
     });
+    scheduledPlayoffs = applyPlayoffStartTimes(scheduledPlayoffs, settings, scheduledGroups);
     var fixtures = scheduledGroups.concat(scheduledPlayoffs);
 
     return {
       divisionId: divisionId,
-      settings: Object.assign({}, settings),
+      settings: Object.assign({}, settings, {
+        advancePerGroup: parseAdvance(settings, groups.length),
+        startTime: formatTime24(parseTimeToMinutes(settings.startTime || '10:00', 600))
+      }),
       venues: venues,
       groups: groups,
       fixtures: fixtures,
@@ -515,6 +570,7 @@
         totalFixtures: fixtures.length,
         totalSlots: getTimeSlots(fixtures).length,
         gameBlockMinutes: groupBlockMinutes,
+        playoffBlockMinutes: getPlayoffBlockMinutes(settings),
         breakSlotsBeforePlayoffs: breakSlots
       }
     };
@@ -589,11 +645,13 @@
       note = requestedFields + ' fields requested; ' + activeFields + ' can be used without teams playing twice in the same slot.';
     }
 
-    var advance = ADV[settings.playoffFormat] || 2;
+    var advance = parseAdvance(settings, groups.length);
     return {
       settings: Object.assign({}, settings, {
         numFields: requestedFields,
-        effectiveFields: activeFields
+        effectiveFields: activeFields,
+        advancePerGroup: advance,
+        startTime: formatTime24(parseTimeToMinutes(settings.startTime || '10:00', 600))
       }),
       groups: groups,
       schedule: schedule,
@@ -679,6 +737,10 @@
     generateDivisionSchedule: generateDivisionSchedule,
     validateFixtureMove: validateFixtureMove,
     moveFixture: moveFixture,
-    buildPlayoffFixtures: buildPlayoffFixtures
+    buildPlayoffFixtures: buildPlayoffFixtures,
+    parseAdvance: parseAdvance,
+    formatTime12: formatTime12,
+    formatTime24: formatTime24,
+    parseTimeToMinutes: parseTimeToMinutes
   };
 })(window);

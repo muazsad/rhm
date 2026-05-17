@@ -211,8 +211,22 @@
 <script src="assets/js/tournament-store.js"></script>
 <script>
 const GL = ['A','B','C','D'];
-const ADV = { top1:1, top2:2, top4:4 };
 let lastUpdated = null;
+
+function advancePerGroupFromSettings(settings = {}) {
+  if (window.RHMTournamentEngine?.parseAdvance) {
+    return window.RHMTournamentEngine.parseAdvance(settings, 0);
+  }
+  const legacy = { top1: 1, top2: 2, top3: 3, top4: 4 };
+  return Math.max(1, Math.min(16, parseInt(settings.advancePerGroup ?? legacy[settings.playoffFormat] ?? 2, 10) || 2));
+}
+
+function formatTimeDisplay(value) {
+  if (window.RHMTournamentEngine?.formatTime12 && window.RHMTournamentEngine?.parseTimeToMinutes) {
+    return window.RHMTournamentEngine.formatTime12(window.RHMTournamentEngine.parseTimeToMinutes(value, 600));
+  }
+  return String(value || '');
+}
 
 async function loadData() {
   return await window.RHMTournamentStore.loadPublicTournamentState();
@@ -241,7 +255,7 @@ async function render() {
   let html = '';
   const display = getDisplaySettings(S, div);
   const standings = computeDivisionStandings(div);
-  const advance = ADV[(div.settings || {}).playoffFormat] || 2;
+  const advance = advancePerGroupFromSettings(div.settings || {});
   const seeds = projectDivisionSeeds(div, standings);
 
   // ── Hero
@@ -303,7 +317,7 @@ function normalizeDivision(raw, S) {
 
 function deriveLegacyDivision(S) {
   const settings = Object.assign({
-    playoffFormat: 'top2',
+    advancePerGroup: 2,
     sport: 'Flag Football'
   }, S.settings || {});
   const groups = normalizeGroups(S.groups || []);
@@ -435,7 +449,10 @@ function renderSchedulePanel(div, fixtures, seeds) {
 
   const slots = [...new Set(scheduledFixtures.map(g => g.slot))].sort((a,b)=>a-b);
   const timeOf = {};
-  scheduledFixtures.forEach(g => { timeOf[g.slot] = g.startsAt || g.time || ('Slot ' + (Number(g.slot) + 1)); });
+  scheduledFixtures.forEach(g => {
+    const rawTime = g.startsAt || g.time;
+    timeOf[g.slot] = rawTime ? formatTimeDisplay(rawTime) : ('Slot ' + (Number(g.slot) + 1));
+  });
   const venues = deriveVenues(div, scheduledFixtures, {});
 
   let html = '<div class="sec-wrap"><div class="sec-label">Schedule</div><div class="sched-wrap"><table class="sched-table"><thead><tr><th>Venue</th>';
@@ -525,7 +542,7 @@ function computeDivisionStandings(div) {
 }
 
 function projectDivisionSeeds(div, standings) {
-  const advance = ADV[(div.settings || {}).playoffFormat] || 2;
+  const advance = advancePerGroupFromSettings(div.settings || {});
   return window.RHMTournamentStandings.projectSeeds({
     standings: standings || computeDivisionStandings(div),
     seedOverrides: div.seedOverrides || [],
@@ -556,13 +573,13 @@ function fixturePhaseLabel(fixture) {
 
 function resolveSeedSide(side, seeds, fixtures, seen) {
   if (!side) return 'TBD';
-  if (!seeds || !seeds.length) return 'TBD';
   if (side.sourceFixtureId) {
     const source = (fixtures || []).find(fixture => fixture.id === side.sourceFixtureId);
-    return fixtureWinner(source, seeds, fixtures, seen) || 'TBD';
+    return fixtureWinner(source, seeds, fixtures, seen) || side.label || 'TBD';
   }
+  if (!seeds || !seeds.length) return side.label || 'TBD';
   const seed = (seeds || []).find(item => item.groupId === side.groupId && item.seed === side.seed);
-  return seed?.team || 'TBD';
+  return seed?.team || side.label || 'TBD';
 }
 
 function fixtureTeamLabel(fixture, side, seeds, fixtures, seen) {

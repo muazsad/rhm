@@ -91,6 +91,49 @@ test('round robin schedule keeps teams from double-booking in a time slot', () =
   });
 });
 
+test('round robin schedule packs every possible field in each slot', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-engine.js', sandbox);
+
+  const result = sandbox.window.RHMTournamentEngine.generateDivisionSchedule({
+    divisionId: 'adult',
+    settings: {
+      numFields: 3,
+      startTime: '13:30',
+      gameDuration: 20,
+      breakBetween: 5,
+      breakBeforePlayoffs: 0,
+      playoffGameDuration: 20,
+      advancePerGroup: 1
+    },
+    venues: [
+      { id: 'field-1', name: 'Field 1' },
+      { id: 'field-2', name: 'Field 2' },
+      { id: 'field-3', name: 'Field 3' }
+    ],
+    groups: [
+      { id: 'group-a', name: 'Group A', teams: ['A1', 'A2', 'A3', 'A4'] },
+      { id: 'group-b', name: 'Group B', teams: ['B1', 'B2', 'B3', 'B4'] },
+      { id: 'group-c', name: 'Group C', teams: ['C1', 'C2', 'C3', 'C4'] }
+    ],
+    blockedWindows: []
+  });
+
+  const groupFixtures = result.fixtures.filter(fixture => fixture.phase === 'group');
+  const slots = [...new Set(groupFixtures.map(fixture => fixture.slot))].sort((a, b) => a - b);
+
+  assert.equal(groupFixtures.length, 18);
+  assert.equal(slots.length, 6);
+  slots.forEach(slot => {
+    const games = groupFixtures.filter(fixture => fixture.slot === slot);
+    assert.equal(games.length, 3, `slot ${slot} should use all three fields`);
+    assert.equal(JSON.stringify(games.map(fixture => fixture.venueIndex)), JSON.stringify([0, 1, 2]));
+    const teams = games.flatMap(fixture => [fixture.teamA, fixture.teamB]);
+    assert.equal(teams.length, new Set(teams).size, `slot ${slot} double-books a team`);
+  });
+  assert.equal(groupFixtures[0].startsAt, '1:30 PM');
+});
+
 test('generateDivisionSchedule creates group and playoff fixtures with seed placeholders', () => {
   const sandbox = makeSandbox();
   loadBrowserScript('assets/js/tournament-engine.js', sandbox);
@@ -104,7 +147,7 @@ test('generateDivisionSchedule creates group and playoff fixtures with seed plac
       breakBetween: 5,
       breakBeforePlayoffs: 30,
       playoffGameDuration: 25,
-      playoffFormat: 'top2'
+      advancePerGroup: 2
     },
     venues: [
       { id: 'field-1', name: 'Field 1' },
@@ -119,7 +162,51 @@ test('generateDivisionSchedule creates group and playoff fixtures with seed plac
 
   assert.equal(result.fixtures.filter(fixture => fixture.phase === 'group').length, 6);
   assert.equal(result.fixtures.filter(fixture => fixture.phase === 'playoff').length, 3);
-  assert.equal(result.fixtures.find(fixture => fixture.phase === 'playoff').seedA.label, 'Group A Seed 1');
+  assert.equal(result.fixtures.find(fixture => fixture.phase === 'playoff').seedA.label, '1A');
+});
+
+test('generateDivisionSchedule builds a six-team bracket with top seeds on byes', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-engine.js', sandbox);
+
+  const result = sandbox.window.RHMTournamentEngine.generateDivisionSchedule({
+    divisionId: 'adult',
+    settings: {
+      startTime: '10:00 AM',
+      gameDuration: 20,
+      breakBetween: 0,
+      breakBeforePlayoffs: 30,
+      playoffGameDuration: 20,
+      advancePerGroup: 3
+    },
+    venues: [
+      { id: 'field-1', name: 'Field 1' },
+      { id: 'field-2', name: 'Field 2' }
+    ],
+    groups: [
+      { id: 'group-a', name: 'Group A', teams: ['A1', 'A2', 'A3'] },
+      { id: 'group-b', name: 'Group B', teams: ['B1', 'B2', 'B3'] }
+    ],
+    blockedWindows: []
+  });
+
+  const playoffs = result.fixtures.filter(fixture => fixture.phase === 'playoff');
+  const quarterfinals = playoffs.filter(fixture => fixture.roundName === 'Quarterfinals');
+  const semifinals = playoffs.filter(fixture => fixture.roundName === 'Semifinals');
+  const final = playoffs.filter(fixture => fixture.roundName === 'Final');
+
+  assert.equal(playoffs.length, 5);
+  assert.equal(quarterfinals.length, 2);
+  assert.equal(semifinals.length, 2);
+  assert.equal(final.length, 1);
+  assert.equal(JSON.stringify(
+    quarterfinals.map(fixture => [fixture.seedA.label, fixture.seedB.label]),
+  ), JSON.stringify([['2A', '3B'], ['2B', '3A']]));
+  assert.equal(JSON.stringify(
+    semifinals.map(fixture => [fixture.seedA.label, fixture.seedB.label]),
+  ), JSON.stringify([['1A', 'Winner of adult-playoff-0'], ['1B', 'Winner of adult-playoff-1']]));
+  assert.equal(new Set(quarterfinals.map(fixture => fixture.slot)).size, 1);
+  assert.equal(JSON.stringify(quarterfinals.map(fixture => fixture.venueIndex)), JSON.stringify([0, 1]));
 });
 
 test('generateDivisionSchedule respects venue blocks', () => {
@@ -242,7 +329,7 @@ test('generateDivisionSchedule avoids self matches and one-sided playoff fixture
   assertPlayablePlayoffFixtures(result.fixtures);
 });
 
-test('generateDivisionSchedule packs two five-team groups across three fields without three straight games', () => {
+test('generateDivisionSchedule packs two five-team groups across three fields', () => {
   const sandbox = makeSandbox();
   loadBrowserScript('assets/js/tournament-engine.js', sandbox);
 
@@ -281,22 +368,9 @@ test('generateDivisionSchedule packs two five-team groups across three fields wi
     assert.equal(gamesInSlot.length, expectedGames);
   });
 
-  const slotsByTeam = {};
-  groupFixtures.forEach(fixture => {
-    [fixture.teamA, fixture.teamB].forEach(team => {
-      slotsByTeam[team] = slotsByTeam[team] || [];
-      slotsByTeam[team].push(fixture.slot);
-    });
-  });
-
-  Object.entries(slotsByTeam).forEach(([team, slots]) => {
-    const ordered = [...new Set(slots)].sort((a, b) => a - b);
-    for (let i = 2; i < ordered.length; i++) {
-      assert.notEqual(
-        ordered[i - 2] + 1 === ordered[i - 1] && ordered[i - 1] + 1 === ordered[i],
-        true,
-        `${team} plays three consecutive slots: ${ordered.join(', ')}`
-      );
-    }
+  groupSlots.forEach((slot, index) => {
+    const gamesInSlot = groupFixtures.filter(fixture => fixture.slot === slot);
+    const expectedFields = index === groupSlots.length - 1 ? [0, 1] : [0, 1, 2];
+    assert.equal(JSON.stringify(gamesInSlot.map(fixture => fixture.venueIndex)), JSON.stringify(expectedFields));
   });
 });
