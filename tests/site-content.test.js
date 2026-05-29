@@ -48,6 +48,18 @@ test('admin events page includes a registration form builder', () => {
   ].forEach(text => assert.ok(adminEvents.includes(text), `${text} missing from admin events page`));
 });
 
+test('admin events page renders and edits loaded Supabase events', () => {
+  const adminEvents = readPage('admin-events.html');
+
+  [
+    'let adminEvents = []',
+    'function renderEvents(events = adminEvents)',
+    'async function loadAdminEvents()',
+    'async function editEvent(id)',
+    'async function linkTournament(id)'
+  ].forEach(text => assert.ok(adminEvents.includes(text), `${text} missing from admin events page`));
+});
+
 test('event store inserts registrations without requiring public select', () => {
   const store = readPage('assets/js/events-store.js');
 

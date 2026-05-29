@@ -172,6 +172,34 @@
     return normalizeEvent(response.data);
   }
 
+  async function updateEvent(id, input) {
+    var client = readyClient();
+    if (!client) throw new Error('Supabase is not configured.');
+
+    var session = await client.auth.getSession();
+    var userId = session.data.session && session.data.session.user ? session.data.session.user.id : null;
+    var response = await client
+      .from('events')
+      .update({
+        title: input.title,
+        sport: input.sport,
+        status: input.status,
+        event_date: input.date,
+        event_time: input.time || null,
+        location: input.location || null,
+        description: input.description || null,
+        registration: normalizeRegistration(input.registration),
+        is_published: true,
+        updated_by: userId
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (response.error) throw response.error;
+    return normalizeEvent(response.data);
+  }
+
   async function deleteEvent(id) {
     var client = readyClient();
     if (!client) throw new Error('Supabase is not configured.');
@@ -246,6 +274,7 @@
     listPublishedEvents: listPublishedEvents,
     listAdminEvents: listAdminEvents,
     createEvent: createEvent,
+    updateEvent: updateEvent,
     deleteEvent: deleteEvent,
     submitRegistration: submitRegistration,
     listRegistrations: listRegistrations,

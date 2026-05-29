@@ -496,6 +496,7 @@
   <script src="assets/js/events-store.js"></script>
   <script>
     let editingId = null;
+    let adminEvents = [];
 
     const statusMap = {
       open: { label: 'Registration Open', cls: 'badge-open' },
@@ -693,8 +694,7 @@
       `).join('');
     }
 
-    function renderEvents() {
-      const events = window.RHMEventsStore.listLocalEvents();
+    function renderEvents(events = adminEvents) {
       const list = document.getElementById('events-list');
       list.innerHTML = '';
       events.forEach(ev => {
@@ -707,14 +707,9 @@
       document.getElementById('ev-count').textContent = events.length + ' event' + (events.length !== 1 ? 's' : '');
     }
 
-    function addEvent(e) {
-      e.preventDefault();
-      const id = editingId || String(Date.now());
-      const existingLinked = editingId
-        ? ((window.RHMEventsStore.listLocalEvents().find(x => x.id === editingId) || {}).tournamentLinked === true)
-        : false;
-      const ev = {
-        id,
+    function eventFromForm(existingLinked) {
+      return {
+        title: document.getElementById('ev-name').value.trim(),
         name: document.getElementById('ev-name').value.trim(),
         sport: document.getElementById('ev-sport').value,
         status: document.getElementById('ev-status').value,
@@ -725,26 +720,101 @@
         tournamentLinked: existingLinked,
         registration: collectRegistrationConfig()
       };
-      window.RHMEventsStore.saveLocalEvent(ev);
+    }
+
+    async function addEvent(e) {
+      e.preventDefault();
+      const existingLinked = editingId
+        ? ((adminEvents.find(x => x.id === editingId) || {}).tournamentLinked === true)
+        : false;
+      const ev = eventFromForm(existingLinked);
+      if (editingId) {
+        await window.RHMEventsStore.updateEvent(editingId, ev);
+      } else {
+        await window.RHMEventsStore.createEvent(ev);
+      }
       resetForm();
+      await loadAdminEvents();
+    }
+
+    function resetForm() {
+      editingId = null;
+      document.getElementById('ev-editing-id').value = '';
+      document.querySelector('.form').reset();
+      document.getElementById('ev-sport').value = 'flag-football';
+      document.getElementById('ev-status').value = 'open';
+      document.getElementById('reg-enabled').checked = true;
+      document.getElementById('reg-payment-required').checked = false;
+      document.getElementById('reg-payment-link').value = '';
+      registrationQuestions = defaultRegistrationQuestions();
+      renderRegistrationBuilder();
+      toggleRegistrationBuilder();
+      document.getElementById('ev-submit-btn').textContent = 'Post Event';
+      document.querySelector('.panel-title').textContent = 'Create New Event';
+    }
+
+    async function editEvent(id) {
+      const ev = adminEvents.find(item => item.id === id);
+      if (!ev) return;
+      editingId = id;
+      document.getElementById('ev-editing-id').value = id;
+      document.getElementById('ev-name').value = ev.title || ev.name || '';
+      document.getElementById('ev-sport').value = ev.sport || 'other';
+      document.getElementById('ev-status').value = ev.status || 'soon';
+      document.getElementById('ev-date').value = ev.date || '';
+      document.getElementById('ev-time').value = String(ev.time || '').slice(0, 5);
+      document.getElementById('ev-location').value = ev.location || '';
+      document.getElementById('ev-desc').value = ev.description || '';
+      document.getElementById('reg-enabled').checked = ev.registration?.enabled === true;
+      document.getElementById('reg-payment-required').checked = ev.registration?.paymentRequired === true;
+      document.getElementById('reg-payment-link').value = ev.registration?.paymentLink || '';
+      registrationQuestions = JSON.parse(JSON.stringify(ev.registration?.questions || defaultRegistrationQuestions()));
+      renderRegistrationBuilder();
+      toggleRegistrationBuilder();
+      document.getElementById('ev-submit-btn').textContent = 'Update Event';
+      document.querySelector('.panel-title').textContent = 'Edit Event';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function linkTournament(id) {
+      adminEvents = adminEvents.map(ev => Object.assign({}, ev, { tournamentLinked: ev.id === id ? ev.tournamentLinked !== true : false }));
+      adminEvents.forEach(ev => {
+        window.RHMEventsStore.saveLocalEvent({
+          id: ev.id,
+          name: ev.title || ev.name || '',
+          title: ev.title || ev.name || '',
+          sport: ev.sport,
+          status: ev.status,
+          date: ev.date,
+          time: ev.time,
+          location: ev.location,
+          description: ev.description,
+          tournamentLinked: ev.tournamentLinked,
+          registration: ev.registration
+        });
+      });
       renderEvents();
     }
 
     async function deleteEvent(id) {
       await window.RHMEventsStore.deleteEvent(id);
-      const el = document.getElementById(id);
-      if (el) {
-        el.remove();
-        eventCount = Math.max(0, eventCount - 1);
-        document.getElementById('ev-count').textContent = eventCount + ' event' + (eventCount !== 1 ? 's' : '');
+      await loadAdminEvents();
+    }
+
+    async function loadAdminEvents() {
+      adminEvents = await window.RHMEventsStore.listAdminEvents();
+      const linkedEvent = window.RHMEventsStore.getLinkedEvent();
+      if (linkedEvent) {
+        adminEvents = adminEvents.map(ev => Object.assign({}, ev, { tournamentLinked: ev.id === linkedEvent.id }));
       }
+      renderEvents();
     }
 
     async function initAdminEvents() {
       window.RHMAdminAuth.wireLogoutLinks();
       const admin = await window.RHMAdminAuth.requireAdmin();
       if (!admin) return;
-      renderEvents(await window.RHMEventsStore.listAdminEvents());
+      await loadAdminEvents();
       renderRegistrations(await window.RHMEventsStore.listRegistrations());
       registrationQuestions = defaultRegistrationQuestions();
       renderRegistrationBuilder();
