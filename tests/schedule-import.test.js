@@ -82,3 +82,115 @@ test('detectFormat returns null for unrecognised layout', () => {
   const imp = load();
   assert.equal(imp.detectFormat([['Foo','Bar','Baz']]), null);
 });
+
+// ── Matrix parser ───────────────────────────────────────────────────────────
+
+test('parseMatrix produces correct fixtures from a simple 2-field schedule', () => {
+  const imp = load();
+  const rows = [
+    ['Field', '10:00 AM', '10:30 AM'],
+    ['Field 1', 'Alpha vs Beta', 'Gamma vs Delta'],
+    ['Field 2', 'Echo vs Foxtrot', '']
+  ];
+  const result = imp.parseMatrix(rows, 'group-stage');
+  assert.equal(result.fixtures.filter(f => f.phase === 'group').length, 3);
+  assert.equal(result.venues.length, 2);
+  assert.ok(result.groups.length >= 1);
+  const f0 = result.fixtures[0];
+  assert.equal(f0.teamA, 'Alpha');
+  assert.equal(f0.teamB, 'Beta');
+  assert.equal(f0.startsAt, '10:00 AM');
+  assert.equal(f0.venueId, 'venue-1');
+});
+
+test('parseMatrix assigns league groupName when no group indicators', () => {
+  const imp = load();
+  const rows = [
+    ['', '10:00 AM'],
+    ['Field 1', 'Alpha vs Beta']
+  ];
+  const result = imp.parseMatrix(rows, 'league');
+  assert.equal(result.fixtures[0].groupName, 'League Stage');
+  assert.equal(result.groups[0].name, 'League Stage');
+});
+
+test('parseMatrix assigns Group A groupName when tournamentFormat is group-stage and no group labels', () => {
+  const imp = load();
+  const rows = [
+    ['', '10:00 AM'],
+    ['Field 1', 'Alpha vs Beta']
+  ];
+  const result = imp.parseMatrix(rows, 'group-stage');
+  assert.equal(result.fixtures[0].groupName, 'Group A');
+  assert.equal(result.groups[0].name, 'Group A');
+});
+
+test('parseMatrix marks playoff cells correctly', () => {
+  const imp = load();
+  const rows = [
+    ['Field', '12:00 PM'],
+    ['Field 1', 'Final: Alpha vs Beta']
+  ];
+  const result = imp.parseMatrix(rows, 'group-stage');
+  assert.equal(result.fixtures[0].phase, 'playoff');
+});
+
+test('parseMatrix slots are sorted by time', () => {
+  const imp = load();
+  const rows = [
+    ['Field', '11:00 AM', '10:00 AM'],
+    ['Field 1', 'C vs D', 'A vs B']
+  ];
+  const result = imp.parseMatrix(rows, 'group-stage');
+  const sorted = result.fixtures.slice().sort((a, b) => a.slot - b.slot);
+  assert.equal(sorted[0].teamA, 'A');
+  assert.equal(sorted[1].teamA, 'C');
+});
+
+// ── Flat parser ─────────────────────────────────────────────────────────────
+
+test('parseFlat produces correct fixtures from flat rows', () => {
+  const imp = load();
+  const rows = [
+    ['Time', 'Field', 'Group', 'Team A', 'Team B', 'Round'],
+    ['10:00 AM', 'Field 1', 'Group A', 'Alpha', 'Beta', 'Group Stage'],
+    ['10:00 AM', 'Field 2', 'Group B', 'Gamma', 'Delta', 'Group A'],
+    ['12:00 PM', 'Field 1', 'Playoffs', 'TBD', 'TBD', 'Final']
+  ];
+  const result = imp.parseFlat(rows);
+  assert.equal(result.fixtures.length, 3);
+  assert.equal(result.fixtures[2].phase, 'playoff');
+  assert.equal(result.fixtures[0].groupName, 'Group A');
+  assert.equal(result.fixtures[1].groupName, 'Group B');
+  assert.equal(result.venues.length, 2);
+});
+
+test('parseFlat maps League and Pool round labels to group phase', () => {
+  const imp = load();
+  const rows = [
+    ['Time', 'Field', 'Group', 'Team A', 'Team B', 'Round'],
+    ['10:00 AM', 'Field 1', 'League Stage', 'A', 'B', 'League'],
+    ['10:30 AM', 'Field 1', 'League Stage', 'C', 'D', 'Pool']
+  ];
+  const result = imp.parseFlat(rows);
+  assert.equal(result.fixtures[0].phase, 'group');
+  assert.equal(result.fixtures[1].phase, 'group');
+  assert.equal(result.fixtures[0].groupName, 'League Stage');
+});
+
+// ── groupId consistency ──────────────────────────────────────────────────────
+
+test('fixture groupId values are group-a, group-b etc matching group array ids', () => {
+  const imp = load();
+  const rows = [
+    ['Time', 'Field', 'Group', 'Team A', 'Team B', 'Round'],
+    ['10:00 AM', 'Field 1', 'Group A', 'Alpha', 'Beta', 'Group Stage'],
+    ['10:00 AM', 'Field 2', 'Group B', 'Gamma', 'Delta', 'Group Stage']
+  ];
+  const result = imp.parseFlat(rows);
+  const groupIds = result.groups.map(g => g.id);
+  const fixtureGroupIds = [...new Set(result.fixtures.map(f => f.groupId))];
+  fixtureGroupIds.forEach(id => {
+    assert.ok(groupIds.includes(id), 'fixture groupId ' + id + ' not in groups array');
+  });
+});
