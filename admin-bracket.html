@@ -116,6 +116,19 @@
       font-family: 'DM Sans', sans-serif;
     }
     .btn-score:hover { background: #27a343; }
+    .add-game-btn {
+      width: 100%; min-height: 72px; border: 1px dashed #292929;
+      background: #0b0b0b; color: #555; cursor: pointer;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      font-family: 'DM Sans', sans-serif; transition: border-color 0.15s, color 0.15s;
+    }
+    .add-game-btn:hover { border-color: var(--green); color: var(--green); }
+    .manual-delete {
+      margin-top: 0.35rem; background: transparent; border: none; color: #666;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+    }
+    .manual-delete:hover { color: #e05555; }
 
     /* ── SECTION CARD ── */
     .s-card { background: var(--surface); border: 1px solid var(--border); padding: 1.75rem; margin-bottom: 1.5rem; }
@@ -256,6 +269,21 @@
 
     /* ── NOTICE ── */
     .notice { padding: 2rem; border: 1px dashed var(--border2); color: var(--muted); font-size: 13px; text-align: center; }
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,0.74);
+      display: flex; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal-backdrop[hidden] { display: none; }
+    .modal-card {
+      width: min(520px, 100%); background: var(--surface); border: 1px solid var(--border2);
+      padding: 1.5rem; box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+    }
+    .modal-title {
+      font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.1em;
+      color: var(--white); margin-bottom: 0.35rem;
+    }
+    .modal-meta { color: var(--muted); font-size: 12px; margin-bottom: 1rem; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.5rem; }
 
     @media (max-width: 900px) {
       .setup-grid { grid-template-columns: 1fr; }
@@ -325,6 +353,13 @@
               <option value="team-list">List All Teams</option>
             </select>
           </div>
+          <div class="f-row">
+            <label class="f-label" for="t-schedule-mode">Schedule Mode</label>
+            <select class="f-select" id="t-schedule-mode" onchange="onScheduleModeChange()">
+              <option value="auto">Auto-generate schedule</option>
+              <option value="manual">Create my own schedule</option>
+            </select>
+          </div>
           <div class="f-row" id="team-list-wrap" style="display:none;">
             <label class="f-label" for="t-team-list">Team List</label>
             <textarea class="f-input" id="t-team-list" rows="8" placeholder="One team per line"></textarea>
@@ -360,6 +395,10 @@
             <div class="f-row">
               <label class="f-label" for="t-start">Start Time</label>
               <input class="f-input" id="t-start" type="text" inputmode="numeric" value="10:00 AM" placeholder="10:00 AM" onblur="normalizeStartTimeInput()">
+            </div>
+            <div class="f-row" id="manual-slots-wrap" style="display:none;">
+              <label class="f-label" for="t-manual-slots">Manual Time Slots</label>
+              <input class="f-input" id="t-manual-slots" type="number" min="1" max="96" value="8">
             </div>
             <div class="f-row">
               <label class="f-label" for="t-advance">Teams Advancing Per Group</label>
@@ -421,7 +460,7 @@
     </div>
 
     <div style="text-align:center;padding-top:0.5rem;">
-      <button class="btn-primary" style="padding:0.9rem 3.5rem;font-size:1.2rem;" onclick="generateSchedule()">Generate Schedule</button>
+      <button class="btn-primary" id="generate-schedule-btn" style="padding:0.9rem 3.5rem;font-size:1.2rem;" onclick="generateSchedule()">Generate Schedule</button>
     </div>
   </div>
 
@@ -458,6 +497,42 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="manual-game-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-title">Add Game</div>
+      <div class="modal-meta" id="manual-game-meta"></div>
+      <div class="f-row">
+        <label class="f-label" for="manual-phase">Phase</label>
+        <select class="f-select" id="manual-phase" onchange="onManualPhaseChange()">
+          <option value="group">Group Game</option>
+          <option value="playoff">Playoff Game</option>
+        </select>
+      </div>
+      <div class="f-row" id="manual-group-wrap">
+        <label class="f-label" for="manual-group">Group</label>
+        <select class="f-select" id="manual-group" onchange="onManualGroupChange()"></select>
+      </div>
+      <div class="f-row" id="manual-round-wrap" style="display:none;">
+        <label class="f-label" for="manual-round">Round Name</label>
+        <input class="f-input" id="manual-round" type="text" value="Playoff" placeholder="Quarterfinals, Semifinals, Final">
+      </div>
+      <div class="f-grid-2">
+        <div class="f-row">
+          <label class="f-label" for="manual-team-a">Team A</label>
+          <select class="f-select" id="manual-team-a"></select>
+        </div>
+        <div class="f-row">
+          <label class="f-label" for="manual-team-b">Team B</label>
+          <select class="f-select" id="manual-team-b"></select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-sm-outline" onclick="closeManualGameForm()">Cancel</button>
+        <button class="btn-primary" onclick="saveManualGameFromForm()">Add Game</button>
+      </div>
+    </div>
+  </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/supabase-config.js"></script>
 <script src="assets/js/admin-auth.js"></script>
@@ -470,6 +545,7 @@ const GL = ['A','B','C','D'];
 
 let S = mkDefault();
 let draggingFixtureId = null;
+let manualGameTarget = null;
 
 function mkDefault() {
   return {
@@ -482,7 +558,7 @@ function mkDefault() {
       name: 'Main Division',
       sport: 'Flag Football',
       setupMode: 'manual-groups',
-      schedulingMode: 'shared',
+      schedulingMode: 'auto',
       settings: {
         numGroups: 2,
         numFields: 2,
@@ -492,6 +568,7 @@ function mkDefault() {
         playoffGameDuration: 25,
         startTime: '10:00',
         advancePerGroup: 2,
+        manualSlots: 8,
         winPoints: 3,
         drawPoints: 1,
         lossPoints: 0,
@@ -541,6 +618,14 @@ function formatTimeDisplay(value) {
   const h24 = Math.floor(minutes / 60) % 24;
   const h12 = h24 % 12 || 12;
   return h12 + ':' + String(minutes % 60).padStart(2, '0') + ' ' + (h24 >= 12 ? 'PM' : 'AM');
+}
+
+function slotStartTime(slot) {
+  const div = activeDivision();
+  const settings = div.settings || {};
+  const start = parseTimeToMinutes(settings.startTime || '10:00 AM', 600);
+  const block = (parseInt(settings.gameDuration, 10) || 25) + (parseInt(settings.breakBetween, 10) || 0);
+  return start + ((parseInt(slot, 10) || 0) * block);
 }
 
 function normalizeStartTimeInput() {
@@ -668,6 +753,7 @@ function readSettings() {
     playoffGameDuration: parseInt(document.getElementById('t-po-duration').value) || 25,
     startTime: formatTimeDisplay(document.getElementById('t-start').value || '10:00 AM'),
     advancePerGroup: Math.max(1, Math.min(16, parseInt(document.getElementById('t-advance').value) || 2)),
+    manualSlots: Math.max(1, Math.min(96, parseInt(document.getElementById('t-manual-slots').value) || 8)),
     winPoints: parseInt(document.getElementById('t-win-points').value) || 0,
     drawPoints: parseInt(document.getElementById('t-draw-points').value) || 0,
     lossPoints: parseInt(document.getElementById('t-loss-points').value) || 0,
@@ -679,6 +765,7 @@ function readSettings() {
   };
   div.sport = sport;
   div.setupMode = document.getElementById('t-setup-mode').value;
+  div.schedulingMode = document.getElementById('t-schedule-mode').value;
   div.teamList = document.getElementById('t-team-list').value;
   div.settings = Object.assign({}, div.settings, divisionSettings);
   syncVenueCount(divisionSettings.numFields);
@@ -692,6 +779,7 @@ function applySettings(cfg) {
   document.getElementById('t-name').value = global.name || '';
   document.getElementById('t-sport').value = global.sport || div.sport || 'Flag Football';
   document.getElementById('t-setup-mode').value = div.setupMode || 'manual-groups';
+  document.getElementById('t-schedule-mode').value = div.schedulingMode === 'manual' ? 'manual' : 'auto';
   document.getElementById('t-team-list').value = div.teamList || '';
   document.getElementById('t-groups').value = settings.numGroups || 2;
   document.getElementById('t-fields').value = settings.numFields || 2;
@@ -701,12 +789,14 @@ function applySettings(cfg) {
   document.getElementById('t-po-duration').value = settings.playoffGameDuration || 25;
   document.getElementById('t-start').value = formatTimeDisplay(settings.startTime || '10:00 AM');
   document.getElementById('t-advance').value = advancePerGroupFromSettings(settings);
+  document.getElementById('t-manual-slots').value = settings.manualSlots || div.scheduleSummary?.totalSlots || 8;
   document.getElementById('t-win-points').value = settings.winPoints ?? 3;
   document.getElementById('t-draw-points').value = settings.drawPoints ?? 1;
   document.getElementById('t-loss-points').value = settings.lossPoints ?? 0;
   document.getElementById('t-ties').value = settings.tiesAllowed === true ? 'true' : 'false';
   syncVenueCount(settings.numFields || 2);
   renderSetupMode();
+  updateScheduleModeControls();
   renderVenues();
 }
 
@@ -742,10 +832,24 @@ function onSetupModeChange() {
   renderGroups();
 }
 
+function onScheduleModeChange() {
+  const div = activeDivision();
+  div.schedulingMode = document.getElementById('t-schedule-mode').value;
+  updateScheduleModeControls();
+}
+
 function renderSetupMode() {
   const mode = document.getElementById('t-setup-mode').value;
   document.getElementById('team-list-wrap').style.display = mode === 'team-list' ? '' : 'none';
   document.getElementById('group-method-wrap').style.display = mode === 'team-list' ? '' : 'none';
+}
+
+function updateScheduleModeControls() {
+  const mode = document.getElementById('t-schedule-mode')?.value || 'auto';
+  const slotsWrap = document.getElementById('manual-slots-wrap');
+  const button = document.getElementById('generate-schedule-btn');
+  if (slotsWrap) slotsWrap.style.display = mode === 'manual' ? '' : 'none';
+  if (button) button.textContent = mode === 'manual' ? 'Create Empty Schedule' : 'Generate Schedule';
 }
 
 function venueDefaultName(sport, index) {
@@ -881,6 +985,24 @@ function generateSchedule() {
     });
   }
 
+  if (div.schedulingMode === 'manual') {
+    const result = window.RHMTournamentEngine.createManualSchedule({
+      divisionId: div.id,
+      settings: div.settings,
+      groups: groups,
+      venues: div.venues
+    });
+    div.settings = Object.assign({}, div.settings, result.settings);
+    div.groups = groupsForUi(result.groups);
+    div.venues = result.venues;
+    div.fixtures = [];
+    div.scheduleSummary = result.summary;
+    syncLegacyTournamentFields();
+    save();
+    switchTab('schedule');
+    return;
+  }
+
   const result = window.RHMTournamentEngine.generateDivisionSchedule({
     divisionId: div.id,
     settings: div.settings,
@@ -903,7 +1025,9 @@ function generateSchedule() {
 function renderSchedule() {
   const div = activeDivision();
   const fixtures = div.fixtures || [];
-  if (!fixtures.length) {
+  const isManual = div.schedulingMode === 'manual';
+  const manualSlotCount = Math.max(0, parseInt(div.scheduleSummary?.totalSlots || div.settings?.manualSlots || 0) || 0);
+  if (!fixtures.length && !isManual) {
     document.getElementById('sched-grid').innerHTML = '<div class="notice">No schedule yet - complete Setup and click Generate Schedule.</div>';
     document.getElementById('po-preview').innerHTML = '';
     renderPublishStatus();
@@ -911,9 +1035,14 @@ function renderSchedule() {
   }
   document.getElementById('sched-headline').textContent = S.settings.name || 'Schedule';
 
-  const slots = [...new Set(fixtures.map(g => g.slot))].sort((a,b)=>a-b);
+  const fixtureSlots = [...new Set(fixtures.map(g => g.slot))].sort((a,b)=>a-b);
+  const maxFixtureSlot = fixtureSlots.length ? Math.max(...fixtureSlots) : -1;
+  const slots = isManual
+    ? Array.from({ length: Math.max(manualSlotCount, maxFixtureSlot + 1, 1) }, (_, index) => index)
+    : fixtureSlots;
   const timeOf = {};
-  fixtures.forEach(g => { timeOf[g.slot] = formatTimeDisplay(g.startsAt); });
+  slots.forEach(s => { timeOf[s] = formatTimeDisplay(slotStartTime(s)); });
+  fixtures.forEach(g => { timeOf[g.slot] = formatTimeDisplay(g.startsAt || slotStartTime(g.slot)); });
   const venues = (div.venues && div.venues.length) ? div.venues : [];
   const summary = div.scheduleSummary || {
     totalFixtures: fixtures.length,
@@ -940,7 +1069,11 @@ function renderSchedule() {
     slots.forEach(s => {
       const g = fixtures.find(x => x.venueId === venue.id && x.slot === s);
       if (!g) {
-        html += `<td class="empty-cell" ondragover="onFixtureDragOver(event)" ondrop="onFixtureDrop(event,'${ea(venue.id)}',${s})"></td>`;
+        html += `<td class="empty-cell" ondragover="onFixtureDragOver(event)" ondrop="onFixtureDrop(event,'${ea(venue.id)}',${s})">`;
+        if (isManual) {
+          html += `<button class="add-game-btn" onclick="openManualGameForm('${ea(venue.id)}',${s})">Add Game</button>`;
+        }
+        html += '</td>';
         return;
       }
       const scored = isScored(g);
@@ -957,6 +1090,7 @@ function renderSchedule() {
               <button class="btn-score" onclick="saveScore('${g.id}')">Save</button>
               ${scored ? '<span class="score-ok">Saved</span>' : ''}
             </div>
+            ${isManual ? `<button class="manual-delete" onclick="deleteManualFixture('${ea(g.id)}')">Remove</button>` : ''}
           </div>
         </td>`;
     });
@@ -1012,6 +1146,108 @@ function saveScore(id) {
   }
   renderSchedule();
   if (document.getElementById('panel-bracket').classList.contains('active')) renderBracketTab();
+}
+
+function manualTeamsForGroup(groupId) {
+  const div = activeDivision();
+  const group = (div.groups || []).find(item => item.id === groupId);
+  return window.RHMTournamentGroups.parseTeamList(group?.teams || []);
+}
+
+function allManualTeams() {
+  const div = activeDivision();
+  const seen = new Set();
+  const teams = [];
+  (div.groups || []).forEach(group => {
+    window.RHMTournamentGroups.parseTeamList(group.teams || []).forEach(team => {
+      if (!seen.has(team)) {
+        seen.add(team);
+        teams.push(team);
+      }
+    });
+  });
+  return teams;
+}
+
+function fillManualTeamSelects(teams) {
+  const options = (teams || []).map(team => `<option value="${ea(team)}">${eh(team)}</option>`).join('');
+  document.getElementById('manual-team-a').innerHTML = options;
+  document.getElementById('manual-team-b').innerHTML = options;
+}
+
+function onManualGroupChange() {
+  fillManualTeamSelects(manualTeamsForGroup(document.getElementById('manual-group').value));
+}
+
+function onManualPhaseChange() {
+  const phase = document.getElementById('manual-phase').value;
+  document.getElementById('manual-group-wrap').style.display = phase === 'group' ? '' : 'none';
+  document.getElementById('manual-round-wrap').style.display = phase === 'playoff' ? '' : 'none';
+  if (phase === 'group') {
+    onManualGroupChange();
+  } else {
+    fillManualTeamSelects(allManualTeams());
+  }
+}
+
+function openManualGameForm(venueId, slot) {
+  const div = activeDivision();
+  const venue = (div.venues || []).find(item => item.id === venueId);
+  manualGameTarget = { venueId, slot };
+  document.getElementById('manual-game-meta').textContent = `${venue?.name || 'Venue'} at ${formatTimeDisplay(slotStartTime(slot))}`;
+  document.getElementById('manual-phase').value = 'group';
+  document.getElementById('manual-round').value = 'Playoff';
+  document.getElementById('manual-group').innerHTML = (div.groups || []).map(group => (
+    `<option value="${ea(group.id)}">${eh(group.name)}</option>`
+  )).join('');
+  onManualPhaseChange();
+  document.getElementById('manual-game-modal').hidden = false;
+}
+
+function closeManualGameForm() {
+  manualGameTarget = null;
+  document.getElementById('manual-game-modal').hidden = true;
+}
+
+function saveManualGameFromForm() {
+  if (!manualGameTarget) return;
+  const div = activeDivision();
+  const phase = document.getElementById('manual-phase').value;
+  const result = window.RHMTournamentEngine.addManualFixture({
+    divisionId: div.id,
+    settings: div.settings,
+    venues: div.venues,
+    groups: competitionGroups(),
+    fixtures: div.fixtures || [],
+    phase,
+    groupId: document.getElementById('manual-group').value,
+    roundName: document.getElementById('manual-round').value || 'Playoff',
+    teamA: document.getElementById('manual-team-a').value,
+    teamB: document.getElementById('manual-team-b').value,
+    targetVenueId: manualGameTarget.venueId,
+    targetSlot: manualGameTarget.slot,
+    blockedWindows: div.blockedWindows || []
+  });
+  if (!result.ok) { alert(result.reason); return; }
+  div.fixtures = result.fixtures;
+  div.scheduleSummary = Object.assign({}, div.scheduleSummary || {}, {
+    totalFixtures: div.fixtures.length,
+    totalSlots: Math.max(parseInt(div.scheduleSummary?.totalSlots || div.settings.manualSlots || 1), manualGameTarget.slot + 1),
+    gameBlockMinutes: (parseInt(div.settings.gameDuration, 10) || 25) + (parseInt(div.settings.breakBetween, 10) || 0),
+    note: 'Manual schedule'
+  });
+  closeManualGameForm();
+  save();
+  renderSchedule();
+}
+
+function deleteManualFixture(id) {
+  const div = activeDivision();
+  if (!confirm('Remove this game from the manual schedule?')) return;
+  div.fixtures = (div.fixtures || []).filter(fixture => fixture.id !== id);
+  div.scheduleSummary = Object.assign({}, div.scheduleSummary || {}, { totalFixtures: div.fixtures.length });
+  save();
+  renderSchedule();
 }
 
 // ── STANDINGS ──

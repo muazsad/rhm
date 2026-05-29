@@ -449,3 +449,94 @@ test('generateDivisionSchedule never schedules a team three slots in a row', () 
   assert.notDeepEqual(firstFourSlots, [3, 3, 3, 3]);
   assert.ok(backToBackPairs <= 4, `expected at most 4 back-to-back pairs, got ${backToBackPairs}`);
 });
+
+test('createManualSchedule creates an empty grid from settings, groups, and venues', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-engine.js', sandbox);
+
+  const result = sandbox.window.RHMTournamentEngine.createManualSchedule({
+    divisionId: 'adult',
+    settings: {
+      startTime: '9:30 AM',
+      gameDuration: 20,
+      breakBetween: 10,
+      manualSlots: 8,
+      advancePerGroup: 2,
+      numFields: 2
+    },
+    venues: [
+      { id: 'field-1', name: 'Main Field' },
+      { id: 'field-2', name: 'Back Field' }
+    ],
+    groups: [
+      { id: 'group-a', name: 'Group A', teams: ['A1', 'A2'] },
+      { id: 'group-b', name: 'Group B', teams: ['B1', 'B2'] }
+    ]
+  });
+
+  assert.equal(result.divisionId, 'adult');
+  assert.equal(result.fixtures.length, 0);
+  assert.equal(result.groups.length, 2);
+  assert.equal(result.venues.length, 2);
+  assert.equal(result.settings.startTime, '09:30');
+  assert.equal(result.settings.schedulingMode, 'manual');
+  assert.equal(result.summary.totalSlots, 8);
+  assert.equal(result.summary.totalFixtures, 0);
+  assert.equal(result.summary.gameBlockMinutes, 30);
+  assert.equal(result.summary.note, 'Manual schedule');
+});
+
+test('addManualFixture adds a scheduled group game and blocks conflicts', () => {
+  const sandbox = makeSandbox();
+  loadBrowserScript('assets/js/tournament-engine.js', sandbox);
+
+  const settings = {
+    startTime: '9:30 AM',
+    gameDuration: 20,
+    breakBetween: 10
+  };
+  const venues = [
+    { id: 'field-1', name: 'Main Field' },
+    { id: 'field-2', name: 'Back Field' }
+  ];
+  const groups = [
+    { id: 'group-a', name: 'Group A', teams: ['A1', 'A2', 'A3'] }
+  ];
+
+  const first = sandbox.window.RHMTournamentEngine.addManualFixture({
+    divisionId: 'adult',
+    settings,
+    venues,
+    groups,
+    fixtures: [],
+    phase: 'group',
+    groupId: 'group-a',
+    teamA: 'A1',
+    teamB: 'A2',
+    targetVenueId: 'field-1',
+    targetSlot: 2
+  });
+
+  assert.equal(first.ok, true);
+  assert.equal(first.fixtures.length, 1);
+  assert.equal(first.fixture.id, 'adult-manual-0');
+  assert.equal(first.fixture.groupName, 'Group A');
+  assert.equal(first.fixture.startsAt, '10:30 AM');
+  assert.equal(first.fixture.venueName, 'Main Field');
+
+  const conflict = sandbox.window.RHMTournamentEngine.addManualFixture({
+    divisionId: 'adult',
+    settings,
+    venues,
+    groups,
+    fixtures: first.fixtures,
+    phase: 'group',
+    groupId: 'group-a',
+    teamA: 'A1',
+    teamB: 'A3',
+    targetVenueId: 'field-2',
+    targetSlot: 2
+  });
+
+  assert.deepEqual(conflict, { ok: false, reason: 'A1 already plays at this time.' });
+});

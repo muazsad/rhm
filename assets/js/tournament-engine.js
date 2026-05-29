@@ -722,6 +722,105 @@
     };
   }
 
+  function createManualSchedule(input) {
+    var settings = input.settings || {};
+    var groups = normalizeGroups(input.groups || []);
+    var venues = normalizeVenues(input.venues || [], settings);
+    var manualSlots = Math.max(1, Math.min(96, parseMinutes(settings.manualSlots, 8)));
+    var gameBlockMinutes = getGameBlockMinutes(settings);
+
+    return {
+      divisionId: input.divisionId || 'division',
+      settings: Object.assign({}, settings, {
+        schedulingMode: 'manual',
+        manualSlots: manualSlots,
+        advancePerGroup: parseAdvance(settings, groups.length),
+        startTime: formatTime24(parseTimeToMinutes(settings.startTime || '10:00', 600))
+      }),
+      venues: venues,
+      groups: groups,
+      fixtures: [],
+      summary: {
+        totalFixtures: 0,
+        totalSlots: manualSlots,
+        gameBlockMinutes: gameBlockMinutes,
+        note: 'Manual schedule'
+      }
+    };
+  }
+
+  function nextManualFixtureId(divisionId, fixtures) {
+    var prefix = divisionId + '-manual-';
+    var next = 0;
+    (fixtures || []).forEach(function (fixture) {
+      if (!fixture || String(fixture.id || '').indexOf(prefix) !== 0) return;
+      var parsed = parseInt(String(fixture.id).slice(prefix.length), 10);
+      if (Number.isFinite(parsed) && parsed >= next) next = parsed + 1;
+    });
+    return prefix + next;
+  }
+
+  function addManualFixture(options) {
+    var divisionId = options.divisionId || 'division';
+    var settings = options.settings || {};
+    var venues = normalizeVenues(options.venues || [], settings);
+    var groups = normalizeGroups(options.groups || []);
+    var fixtures = (options.fixtures || []).slice();
+    var targetSlot = parseMinutes(options.targetSlot, 0);
+    var targetVenueId = options.targetVenueId;
+    var targetVenue = venues.find(function (venue) { return venue.id === targetVenueId; });
+    if (!targetVenue) return makeResult(options, { ok: false, reason: 'Choose a field/court.' });
+
+    var teamA = String(options.teamA || '').trim();
+    var teamB = String(options.teamB || '').trim();
+    if (!teamA || !teamB) return makeResult(options, { ok: false, reason: 'Choose both teams.' });
+    if (teamA === teamB) return makeResult(options, { ok: false, reason: 'A team cannot play itself.' });
+
+    var group = groups.find(function (item) { return item.id === options.groupId; });
+    var fixture = {
+      id: options.id || nextManualFixtureId(divisionId, fixtures),
+      divisionId: divisionId,
+      phase: options.phase === 'playoff' ? 'playoff' : 'group',
+      teamA: teamA,
+      teamB: teamB,
+      venueId: targetVenue.id,
+      venueName: targetVenue.name,
+      venueIndex: targetVenue.index,
+      slot: targetSlot,
+      startsAt: startsAtForSlot(settings, targetSlot),
+      scoreA: null,
+      scoreB: null,
+      ref: String(options.ref || ''),
+      status: 'scheduled'
+    };
+
+    if (fixture.phase === 'group') {
+      if (!group) return makeResult(options, { ok: false, reason: 'Choose a group.' });
+      fixture.groupId = group.id;
+      fixture.groupName = group.name;
+      fixture.groupIndex = Math.max(0, groups.findIndex(function (item) { return item.id === group.id; }));
+    } else {
+      fixture.roundName = String(options.roundName || 'Playoff');
+      fixture.roundIndex = parseMinutes(options.roundIndex, 0);
+      fixture.matchIndex = parseMinutes(options.matchIndex, 0);
+    }
+
+    var validation = validateFixtureMove({
+      fixtureId: fixture.id,
+      fixtures: fixtures.concat([fixture]),
+      targetVenueId: targetVenue.id,
+      targetSlot: targetSlot,
+      blockedWindows: options.blockedWindows || []
+    });
+    if (!validation.ok) return makeResult(options, { ok: false, reason: validation.reason });
+
+    return makeResult(options, {
+      ok: true,
+      fixture: fixture,
+      fixtures: fixtures.concat([fixture])
+    });
+  }
+
   function assignRefs(schedule, groups) {
     schedule.forEach(function (game) {
       var playing = new Set(schedule.filter(function (g) {
@@ -884,6 +983,8 @@
     validateFixtureMove: validateFixtureMove,
     moveFixture: moveFixture,
     buildPlayoffFixtures: buildPlayoffFixtures,
+    createManualSchedule: createManualSchedule,
+    addManualFixture: addManualFixture,
     parseAdvance: parseAdvance,
     formatTime12: formatTime12,
     formatTime24: formatTime24,
