@@ -1,13 +1,23 @@
 # Design: Schedule CSV/Excel Import + Events Admin & Public Display
 
 **Date:** 2026-05-28  
-**Status:** Approved
+**Status:** Approved (rev 2 — Tournament Format selector + dynamic groupName rendering)
 
 ---
 
 ## Feature 1 — Import Schedule from CSV/Excel (admin-bracket.html)
 
-### Location
+### Tournament Format Selector (new — Setup tab)
+A new field added to the Tournament Settings card in the Setup tab:
+
+- **Label:** Tournament Format
+- **Select options:**
+  - `group-stage` — "Group Stage" (default): teams divided into named groups (Group A, Group B, …)
+  - `league` — "League Stage": all teams in one pool, no group separation
+- Stored in `S.divisions[0].settings.tournamentFormat`
+- Used as the fallback when import auto-detection is ambiguous
+
+### Location (Import section)
 New full-width `s-card` section in the Setup tab, below the Generate Schedule button. Labelled "OR IMPORT EXISTING SCHEDULE". Does not replace the existing generate flow — it's an alternative entry point.
 
 ### UI Elements
@@ -31,17 +41,37 @@ Two formats are supported. Detection happens before parsing:
 - Row 1 headers contain "Time", "Field", "Team" keywords
 
 ### Parsing — Matrix Format
+
+**Time and field extraction:**
 - Time slot headers from row 1 (col B onward) → parse 12-hour AM/PM → convert to minutes-from-midnight for sorting
 - Field names from col A (row 2 onward)
 - Each interior cell → split on ` vs ` (case-insensitive) → teamA, teamB
 - Blank cells skipped
 - Cells containing playoff keywords (Final, Semi, Championship, "Winner of") → `phase: 'playoff'`, skip group assignment
-- All non-playoff games → `groupId: 'group-a'`, `groupName: 'Group 1'`
+
+**Tournament format auto-detection (matrix only):**
+After collecting all non-playoff game cells, scan cell text for group indicators:
+- If any cell text contains a pattern like "Group A", "Group B", "Grp A", etc. (regex `\bGroup\s+[A-Z]\b` case-insensitive) → treat as **Group Stage**, extract and preserve group names per cell
+- If all non-playoff games have no group indicators → treat as **League Stage**; set `groupId: 'league'`, `groupName: 'League Stage'`
+- If detection is ambiguous (e.g. some cells have group labels, some don't) → fall back to `S.divisions[0].settings.tournamentFormat`; use `league` or derive group names accordingly
+
+**Group name derivation when Group Stage detected:**
+- If the matrix has an optional "Group" label row above the field rows (row label contains "Group"), use those labels
+- Otherwise assign all games to `groupName: 'Group A'` (single group) unless cell text itself encodes a group (e.g. "Group A: Team X vs Team Y")
+- If cell text encodes no group info, use the user-selected Tournament Format to decide
 
 ### Parsing — Flat Format
 Columns: `Time | Field | Group | Team A | Team B | Round`
-- Round contains "Final"/"Semi"/"Championship" → `phase: 'playoff'`; otherwise `phase: 'group'`
-- Group column maps to groupId/groupName
+
+**Round column → phase mapping:**
+- Contains any of: "Final", "Semi", "Championship" → `phase: 'playoff'`
+- Contains any of: "Group Stage", "Group A"–"Group Z", "League Stage", "League", "Pool" → `phase: 'group'`
+- Default (unrecognised): `phase: 'group'`
+
+**Group column → groupId/groupName:**
+- Group column value is used verbatim as `groupName`
+- `groupId` is derived by slugifying `groupName` (lowercase, spaces → hyphens)
+- Examples: "Group A" → `group-a`, "League Stage" → `league-stage`, "Pool 1" → `pool-1`
 
 ### Shared Parsing Logic
 - Built-in CSV parser (no external library): handles quoted fields, commas inside quoted values
@@ -49,14 +79,16 @@ Columns: `Time | Field | Group | Team A | Team B | Round`
 - Sort all games by time (minutes), then field name
 - Assign slot index: each unique sorted time gets slot 0, 1, 2…
 - `startsAt` stored as 12-hour AM/PM string (e.g. "10:00 AM")
+- `gameBlockMinutes` in scheduleSummary: derived from median time difference between consecutive slots, or 30 if only one slot
 
 ### Data Written to S
 ```
-S.divisions[0].venues  — [{id:'venue-1', name:'Field 1'}, ...]
-S.divisions[0].groups  — [{id:'group-a', name:'Group 1', teams:[...]}]
+S.divisions[0].venues   — [{id:'venue-1', name:'Field 1'}, ...]
+S.divisions[0].groups   — one entry per unique groupName found
 S.divisions[0].fixtures — full fixture array matching existing schema
 S.divisions[0].scheduleSummary — {totalFixtures, totalSlots, gameBlockMinutes, note}
-S.settings.name        — preserved (not overwritten)
+S.divisions[0].settings.tournamentFormat — 'group-stage' | 'league'
+S.settings.name         — preserved (not overwritten)
 ```
 
 Each fixture:
@@ -65,11 +97,12 @@ Each fixture:
   id: 'import-' + i,
   divisionId: 'division-main',
   phase: 'group' | 'playoff',
-  groupId, groupName,
+  groupId,      // slugified from groupName
+  groupName,    // stored verbatim from source — never hardcoded
   teamA, teamB,
   venueId, venueName,
-  slot,        // integer index 0,1,2...
-  startsAt,    // "10:00 AM"
+  slot,         // integer index 0,1,2...
+  startsAt,     // "10:00 AM"
   scoreA: null, scoreB: null,
   ref: '',
   status: 'scheduled'
@@ -80,6 +113,13 @@ Each fixture:
 1. Call `syncLegacyTournamentFields()` + `save()`
 2. Call `switchTab('schedule')` — renders imported schedule in existing grid UI
 3. Show success banner with game count
+
+### Dynamic groupName rendering — everywhere
+- **Schedule tab game cards:** render `fixture.groupName` directly — never substitute a hardcoded label
+- **Standings tab:** group fixtures by `groupName`; each unique `groupName` gets its own standings table labelled with that name. One group → one table; six groups → six tables.
+- **tournament-live.html standings panel:** same — group by `fixture.groupName` dynamically. A league import produces one table labelled whatever `groupName` is stored (e.g. "League Stage"). Multiple groups produce multiple tables.
+- **Bracket & Standings tab in admin:** same dynamic grouping
+- No code anywhere should conditionally render "Group Stage" or "League Stage" as a label — the label always comes from the data.
 
 ---
 
@@ -172,12 +212,13 @@ Existing Supabase methods unchanged.
 - No external libraries except SheetJS (for .xlsx), loaded from CDN
 - Dark theme: `#0a0a0a` background, `#2db84b` green accent, Bebas Neue headlines, DM Sans body
 - No existing bracket tool functionality broken (Setup, Schedule, Bracket & Standings tabs all still work)
+- `groupName` is always rendered from fixture data — never substituted with a hardcoded string in display code
 
 ---
 
 ## Files Changed
-1. `admin-bracket.html` — add Import section to Setup tab
+1. `admin-bracket.html` — Tournament Format selector in Setup; Import section; dynamic groupName rendering in standings
 2. `admin-events.html` — wire form/list to localStorage; add Edit, Delete, Link Tournament
 3. `events.html` — dynamic rendering from localStorage; tournament-linked button
-4. `tournament-live.html` — linked event banner at top
+4. `tournament-live.html` — linked event banner at top; dynamic groupName-based standings
 5. `assets/js/events-store.js` — add localStorage layer functions
