@@ -112,6 +112,7 @@
       timeLabel: formatTime(record.event_time || record.time),
       location: record.location || '',
       description: record.description || '',
+      tournamentLinked: record.tournamentLinked === true,
       registration: normalizeRegistration(record.registration || record.registration_config)
     };
   }
@@ -201,6 +202,43 @@
     return response.data || [];
   }
 
+  var LS_EVENTS = 'rhm_events';
+
+  function listLocalEvents() {
+    try {
+      return JSON.parse(window.localStorage.getItem(LS_EVENTS) || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveLocalEvent(event) {
+    var events = listLocalEvents();
+    var idx = -1;
+    for (var i = 0; i < events.length; i++) {
+      if (events[i].id === event.id) { idx = i; break; }
+    }
+    if (idx >= 0) {
+      events[idx] = event;
+    } else {
+      events.push(event);
+    }
+    window.localStorage.setItem(LS_EVENTS, JSON.stringify(events));
+  }
+
+  function deleteLocalEvent(id) {
+    var events = listLocalEvents().filter(function (e) { return e.id !== id; });
+    window.localStorage.setItem(LS_EVENTS, JSON.stringify(events));
+  }
+
+  function getLinkedEvent() {
+    var events = listLocalEvents();
+    for (var i = 0; i < events.length; i++) {
+      if (events[i].tournamentLinked === true) return events[i];
+    }
+    return null;
+  }
+
   window.RHMEventsStore = {
     defaultRegistrationQuestions: cloneQuestions(defaultRegistrationQuestions),
     normalizeRegistration: normalizeRegistration,
@@ -210,6 +248,10 @@
     createEvent: createEvent,
     deleteEvent: deleteEvent,
     submitRegistration: submitRegistration,
-    listRegistrations: listRegistrations
+    listRegistrations: listRegistrations,
+    listLocalEvents: listLocalEvents,
+    saveLocalEvent: saveLocalEvent,
+    deleteLocalEvent: deleteLocalEvent,
+    getLinkedEvent: getLinkedEvent
   };
 })(window);
