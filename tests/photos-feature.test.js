@@ -29,7 +29,7 @@ test('album browser config exposes display data only', () => {
   const albums = read('assets/js/albums.js');
 
   [
-    'spring-classic-2026',
+    'ocky-flag-football-2026',
     'section: "featured"',
     'locked: true',
     'price: "$5"',
@@ -44,10 +44,10 @@ test('server album catalog maps album IDs to server-held checkout amounts', () =
   delete require.cache[require.resolve('../api/_lib/albums')];
   const { getPaidAlbum, listPaidAlbumIds } = require('../api/_lib/albums');
 
-  assert.deepEqual(listPaidAlbumIds(), ['spring-classic-2026']);
-  assert.equal(getPaidAlbum('spring-classic-2026').amountCents, 500);
-  assert.equal(getPaidAlbum('spring-classic-2026').currency, 'usd');
-  assert.equal(getPaidAlbum('spring-classic-2026').storagePrefix, 'spring-classic-2026');
+  assert.deepEqual(listPaidAlbumIds(), ['ocky-flag-football-2026']);
+  assert.equal(getPaidAlbum('ocky-flag-football-2026').amountCents, 500);
+  assert.equal(getPaidAlbum('ocky-flag-football-2026').currency, 'usd');
+  assert.equal(getPaidAlbum('ocky-flag-football-2026').storagePrefix, 'Ocky Flag Football 2026');
   assert.equal(getPaidAlbum('missing-album'), null);
 
   delete require.cache[require.resolve('../api/_lib/albums')];

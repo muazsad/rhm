@@ -1,10 +1,10 @@
 const PAID_ALBUMS = [
   {
-    id: 'spring-classic-2026',
-    title: 'Spring Classic 2026 Photos',
+    id: 'ocky-flag-football-2026',
+    title: 'Ocky Flag Football 2026 Photos',
     amountCents: 500,
     currency: 'usd',
-    storagePrefix: 'spring-classic-2026'
+    storagePrefix: 'Ocky Flag Football 2026'
   }
 ];
 

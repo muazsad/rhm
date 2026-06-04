@@ -1,11 +1,11 @@
 (function () {
   window.RHM_ALBUMS = [
     {
-      id: "spring-classic-2026",
-      title: "Spring Classic 2026",
+      id: "ocky-flag-football-2026",
+      title: "Ocky Flag Football 2026",
       date: "May 2026",
       section: "featured",
-      cover: "assets/photos/covers/spring-classic-2026.jpg",
+      cover: "assets/photos/covers/ocky-flag-football-2026.jpg",
       locked: true,
       price: "$5"
     }

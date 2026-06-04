@@ -182,7 +182,7 @@
     els.galleryMeta.textContent = images.length ? `${album.date} / ${images.length} photos` : `${album.date} / No photos uploaded yet`;
 
     if (!images.length) {
-      els.galleryGrid.innerHTML = '<div class="gallery-empty">No images are uploaded in Supabase for this album yet.</div>';
+      els.galleryGrid.innerHTML = '<div class="gallery-empty">No photos are available for this album yet.</div>';
     } else {
       els.galleryGrid.innerHTML = images.map((image, index) => `
         <button class="gallery-tile" type="button" data-image-index="${index}" aria-label="Open photo ${index + 1}">
@@ -193,7 +193,7 @@
 
     els.gallery.hidden = false;
     els.gallery.scrollIntoView({ behavior: "smooth", block: "start" });
-    setStatus(images.length ? "Gallery unlocked. Signed photo links refresh each time you open it." : "Album unlocked. Upload photos to Supabase to fill the gallery.", "success");
+    setStatus(images.length ? "Gallery unlocked." : "Album unlocked. Photos are not available yet.", "success");
 
     document.querySelectorAll("[data-image-index]").forEach(button => {
       button.addEventListener("click", () => openLightbox(Number(button.dataset.imageIndex)));
