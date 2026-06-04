@@ -127,7 +127,8 @@ test('verify-session still returns an access token when purchase logging or phot
       }
     }),
     mockModule('api/_lib/storage.js', {
-      listSignedAlbumImages: async () => {
+      listSignedAlbumImages: async (_album, options) => {
+        assert.equal(options.limit, '40');
         throw new Error('folder missing');
       }
     }),
@@ -171,7 +172,13 @@ test('album-access trusts a valid signed token without requiring a purchase row'
       })
     }),
     mockModule('api/_lib/storage.js', {
-      listSignedAlbumImages: async () => [{ url: 'https://signed.example/photo.jpg', alt: 'Photo' }]
+      listSignedAlbumImages: async (_album, options) => {
+        assert.deepEqual(options, { cursor: '40', limit: '20' });
+        return {
+          images: [{ thumbUrl: 'https://signed.example/thumb.jpg', url: 'https://signed.example/photo.jpg', alt: 'Photo' }],
+          nextCursor: '60'
+        };
+      }
     })
   ];
 
@@ -181,7 +188,7 @@ test('album-access trusts a valid signed token without requiring a purchase row'
 
   await handler({
     method: 'GET',
-    url: '/api/album-access?album=ocky-flag-football-2026',
+    url: '/api/album-access?album=ocky-flag-football-2026&cursor=40&limit=20',
     headers: {
       host: 'example.com',
       authorization: 'Bearer signed-token'
@@ -189,8 +196,56 @@ test('album-access trusts a valid signed token without requiring a purchase row'
   }, res);
 
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.json().images, [{ url: 'https://signed.example/photo.jpg', alt: 'Photo' }]);
+  assert.deepEqual(res.json().images, [{ thumbUrl: 'https://signed.example/thumb.jpg', url: 'https://signed.example/photo.jpg', alt: 'Photo' }]);
+  assert.equal(res.json().nextCursor, '60');
 
   mocked.forEach(resolved => delete require.cache[resolved]);
   delete require.cache[require.resolve('../api/album-access')];
+});
+
+test('storage lists a bounded thumbnail page and pairs thumbnails with originals', async () => {
+  const calls = [];
+  const mocked = [
+    mockModule('api/_lib/server-clients.js', {
+      getSupabaseAdmin: () => ({
+        storage: {
+          from: () => ({
+            list: async (prefix, options) => {
+              calls.push({ prefix, options });
+              assert.equal(prefix, 'Ocky Flag Football 2026/thumbs');
+              assert.equal(options.limit, 2);
+              assert.equal(options.offset, 2);
+              return {
+                data: [
+                  { name: '267A4542.jpg' },
+                  { name: '267A4543.jpg' }
+                ],
+                error: null
+              };
+            },
+            createSignedUrls: async paths => ({
+              data: paths.map(pathName => ({ signedUrl: `https://signed.example/${encodeURIComponent(pathName)}` })),
+              error: null
+            })
+          })
+        }
+      })
+    })
+  ];
+
+  delete require.cache[require.resolve('../api/_lib/storage')];
+  const { listSignedAlbumImages } = require('../api/_lib/storage');
+  const page = await listSignedAlbumImages({
+    id: 'ocky-flag-football-2026',
+    storagePrefix: 'Ocky Flag Football 2026'
+  }, { cursor: '2', limit: '2' });
+
+  assert.equal(calls.length, 1);
+  assert.equal(page.nextCursor, '4');
+  assert.equal(page.images.length, 2);
+  assert.ok(page.images[0].thumbUrl.includes('thumbs'));
+  assert.ok(page.images[0].url.includes('originals'));
+
+  mocked.forEach(resolved => delete require.cache[resolved]);
+  delete require.cache[require.resolve('../api/_lib/storage')];
 });

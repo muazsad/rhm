@@ -15,14 +15,16 @@ module.exports = async function handler(req, res) {
   try {
     const url = new URL(req.url, `https://${req.headers.host || 'localhost'}`);
     const albumId = url.searchParams.get('album');
+    const cursor = url.searchParams.get('cursor') || '0';
+    const limit = url.searchParams.get('limit') || '40';
     const album = getPaidAlbum(albumId);
     if (!album) return sendJson(res, 400, { error: 'Unknown album' });
 
     const tokenPayload = verifyAccessToken(readBearerToken(req), album.id);
     if (!tokenPayload) return sendJson(res, 401, { error: 'Album access token is missing or expired' });
 
-    const images = await listSignedAlbumImages(album);
-    return sendJson(res, 200, { albumId: album.id, images });
+    const page = await listSignedAlbumImages(album, { cursor, limit });
+    return sendJson(res, 200, { albumId: album.id, images: page.images, nextCursor: page.nextCursor });
   } catch (error) {
     return sendJson(res, 500, { error: 'Unable to load album access' });
   }

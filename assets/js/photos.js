@@ -4,7 +4,9 @@
     openAlbum: null,
     images: [],
     index: 0,
-    touchStartX: 0
+    touchStartX: 0,
+    nextCursor: null,
+    loadingMore: false
   };
 
   const els = {};
@@ -154,16 +156,20 @@
 
     setToken(album.id, payload.token);
     renderAlbums();
-    renderGallery(album, payload.images || []);
+    renderGallery(album, payload.images || [], payload.nextCursor || null, false);
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 
-  async function loadAlbumWithToken(album, token) {
-    setStatus(`Loading ${album.title}...`);
-    const response = await fetch(`/api/album-access?album=${encodeURIComponent(album.id)}`, {
+  async function loadAlbumWithToken(album, token, cursor = "0", append = false) {
+    if (state.loadingMore) return;
+    state.loadingMore = true;
+    if (!append) setStatus(`Loading ${album.title}...`);
+
+    const response = await fetch(`/api/album-access?album=${encodeURIComponent(album.id)}&cursor=${encodeURIComponent(cursor)}&limit=40`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const payload = await response.json().catch(() => ({}));
+    state.loadingMore = false;
 
     if (!response.ok) {
       clearToken(album.id);
@@ -172,28 +178,31 @@
       return;
     }
 
-    renderGallery(album, payload.images || []);
+    renderGallery(album, payload.images || [], payload.nextCursor || null, append);
   }
 
-  function renderGallery(album, images) {
+  function renderGallery(album, images, nextCursor = null, append = false) {
     state.openAlbum = album;
-    state.images = images;
+    state.images = append ? state.images.concat(images) : images;
+    state.nextCursor = nextCursor;
     els.galleryTitle.textContent = album.title;
-    els.galleryMeta.textContent = images.length ? `${album.date} / ${images.length} photos` : `${album.date} / No photos uploaded yet`;
+    els.galleryMeta.textContent = state.images.length ? `${album.date} / ${state.images.length} photos loaded` : `${album.date} / No photos uploaded yet`;
 
-    if (!images.length) {
+    if (!state.images.length) {
       els.galleryGrid.innerHTML = '<div class="gallery-empty">No photos are available for this album yet.</div>';
     } else {
-      els.galleryGrid.innerHTML = images.map((image, index) => `
+      els.galleryGrid.innerHTML = state.images.map((image, index) => `
         <button class="gallery-tile" type="button" data-image-index="${index}" aria-label="Open photo ${index + 1}">
-          <img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.alt || `${album.title} photo ${index + 1}`)}" loading="lazy">
+          <img src="${escapeHtml(image.thumbUrl || image.url)}" alt="${escapeHtml(image.alt || `${album.title} photo ${index + 1}`)}" loading="lazy">
         </button>
       `).join("");
     }
 
     els.gallery.hidden = false;
-    els.gallery.scrollIntoView({ behavior: "smooth", block: "start" });
-    setStatus(images.length ? "Gallery unlocked." : "Album unlocked. Photos are not available yet.", "success");
+    if (!append) els.gallery.scrollIntoView({ behavior: "smooth", block: "start" });
+    setStatus(state.images.length ? "Gallery unlocked." : "Album unlocked. Photos are not available yet.", "success");
+    els.loadMore.hidden = !state.nextCursor;
+    els.loadMore.disabled = false;
 
     document.querySelectorAll("[data-image-index]").forEach(button => {
       button.addEventListener("click", () => openLightbox(Number(button.dataset.imageIndex)));
@@ -281,9 +290,15 @@
     els.lightboxClose = document.getElementById("lightbox-close");
     els.lightboxPrev = document.getElementById("lightbox-prev");
     els.lightboxNext = document.getElementById("lightbox-next");
+    els.loadMore = document.getElementById("gallery-load-more");
 
     renderAlbums();
     bindLightbox();
+    els.loadMore.addEventListener("click", () => {
+      if (!state.openAlbum || !state.nextCursor) return;
+      els.loadMore.disabled = true;
+      loadAlbumWithToken(state.openAlbum, getToken(state.openAlbum.id), state.nextCursor, true);
+    });
     verifyReturnSession();
   }
 

@@ -196,6 +196,16 @@
   gap: 0.75rem;
 }
 
+.gallery-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 1.5rem;
+}
+
+.gallery-load-more[hidden] {
+  display: none;
+}
+
 .gallery-tile {
   border: 1px solid rgba(255,255,255,0.07);
   background: #070707;

@@ -11,6 +11,7 @@ module.exports = async function handler(req, res) {
   try {
     const url = new URL(req.url, `https://${req.headers.host || 'localhost'}`);
     const sessionId = url.searchParams.get('session_id');
+    const limit = url.searchParams.get('limit') || '40';
     if (!sessionId) return sendJson(res, 400, { error: 'Missing session_id' });
 
     const session = await getStripe().checkout.sessions.retrieve(sessionId);
@@ -34,13 +35,16 @@ module.exports = async function handler(req, res) {
 
     const token = mintAccessToken({ albumId: album.id, sessionId: session.id, email });
     let images = [];
+    let nextCursor = null;
     try {
-      images = await listSignedAlbumImages(album);
+      const page = await listSignedAlbumImages(album, { cursor: '0', limit });
+      images = page.images;
+      nextCursor = page.nextCursor;
     } catch (error) {
       warnings.push('photo_load_failed');
     }
 
-    return sendJson(res, 200, { token, albumId: album.id, images, warnings });
+    return sendJson(res, 200, { token, albumId: album.id, images, nextCursor, warnings });
   } catch (error) {
     return sendJson(res, 500, { error: 'Unable to verify checkout session' });
   }
