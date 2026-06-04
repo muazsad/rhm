@@ -9,6 +9,34 @@ function read(file) {
   return fs.readFileSync(path.join(root, file), 'utf8');
 }
 
+function mockModule(relativePath, exports) {
+  const resolved = require.resolve(path.join(root, relativePath));
+  require.cache[resolved] = {
+    id: resolved,
+    filename: resolved,
+    loaded: true,
+    exports
+  };
+  return resolved;
+}
+
+function mockJsonResponse() {
+  return {
+    statusCode: 200,
+    headers: {},
+    body: '',
+    setHeader(name, value) {
+      this.headers[name.toLowerCase()] = value;
+    },
+    end(value) {
+      this.body = value;
+    },
+    json() {
+      return JSON.parse(this.body);
+    }
+  };
+}
+
 test('photos page is data-driven and includes the required album sections', () => {
   const html = read('photos.html');
 
@@ -48,6 +76,7 @@ test('server album catalog maps album IDs to server-held checkout amounts', () =
   assert.equal(getPaidAlbum('ocky-flag-football-2026').amountCents, 500);
   assert.equal(getPaidAlbum('ocky-flag-football-2026').currency, 'usd');
   assert.equal(getPaidAlbum('ocky-flag-football-2026').storagePrefix, 'Ocky Flag Football 2026');
+  assert.equal(getPaidAlbum('spring-classic-2026').id, 'ocky-flag-football-2026');
   assert.equal(getPaidAlbum('missing-album'), null);
 
   delete require.cache[require.resolve('../api/_lib/albums')];
@@ -64,4 +93,104 @@ test('photos API endpoints are scaffolded with Stripe and Supabase server SDKs',
   const pkg = JSON.parse(read('package.json'));
   assert.ok(pkg.dependencies.stripe, 'stripe dependency missing');
   assert.ok(pkg.dependencies['@supabase/supabase-js'], 'supabase-js dependency missing');
+});
+
+test('verify-session still returns an access token when purchase logging or photo loading fails', async () => {
+  const mocked = [
+    mockModule('api/_lib/albums.js', {
+      getPaidAlbum: () => ({
+        id: 'ocky-flag-football-2026',
+        title: 'Ocky Flag Football 2026 Photos',
+        amountCents: 500,
+        currency: 'usd',
+        storagePrefix: 'Ocky Flag Football 2026'
+      })
+    }),
+    mockModule('api/_lib/server-clients.js', {
+      getStripe: () => ({
+        checkout: {
+          sessions: {
+            retrieve: async () => ({
+              id: 'cs_paid',
+              payment_status: 'paid',
+              metadata: { albumId: 'ocky-flag-football-2026' },
+              customer_details: { email: 'paid@example.com' },
+              amount_total: 500
+            })
+          }
+        }
+      })
+    }),
+    mockModule('api/_lib/purchases.js', {
+      recordPurchase: async () => {
+        throw new Error('table missing');
+      }
+    }),
+    mockModule('api/_lib/storage.js', {
+      listSignedAlbumImages: async () => {
+        throw new Error('folder missing');
+      }
+    }),
+    mockModule('api/_lib/token.js', {
+      mintAccessToken: () => 'signed-token'
+    })
+  ];
+
+  delete require.cache[require.resolve('../api/verify-session')];
+  const handler = require('../api/verify-session');
+  const res = mockJsonResponse();
+
+  await handler({
+    method: 'GET',
+    url: '/api/verify-session?session_id=cs_paid&album=ocky-flag-football-2026',
+    headers: { host: 'example.com' }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.json().token, 'signed-token');
+  assert.deepEqual(res.json().images, []);
+  assert.ok(res.json().warnings.includes('purchase_log_failed'));
+  assert.ok(res.json().warnings.includes('photo_load_failed'));
+
+  mocked.forEach(resolved => delete require.cache[resolved]);
+  delete require.cache[require.resolve('../api/verify-session')];
+});
+
+test('album-access trusts a valid signed token without requiring a purchase row', async () => {
+  const mocked = [
+    mockModule('api/_lib/albums.js', {
+      getPaidAlbum: () => ({
+        id: 'ocky-flag-football-2026',
+        storagePrefix: 'Ocky Flag Football 2026'
+      })
+    }),
+    mockModule('api/_lib/token.js', {
+      verifyAccessToken: () => ({
+        albumId: 'ocky-flag-football-2026',
+        sessionId: 'cs_paid'
+      })
+    }),
+    mockModule('api/_lib/storage.js', {
+      listSignedAlbumImages: async () => [{ url: 'https://signed.example/photo.jpg', alt: 'Photo' }]
+    })
+  ];
+
+  delete require.cache[require.resolve('../api/album-access')];
+  const handler = require('../api/album-access');
+  const res = mockJsonResponse();
+
+  await handler({
+    method: 'GET',
+    url: '/api/album-access?album=ocky-flag-football-2026',
+    headers: {
+      host: 'example.com',
+      authorization: 'Bearer signed-token'
+    }
+  }, res);
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.json().images, [{ url: 'https://signed.example/photo.jpg', alt: 'Photo' }]);
+
+  mocked.forEach(resolved => delete require.cache[resolved]);
+  delete require.cache[require.resolve('../api/album-access')];
 });

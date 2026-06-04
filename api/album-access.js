@@ -1,5 +1,4 @@
 const { getPaidAlbum } = require('./_lib/albums');
-const { findPurchaseBySession } = require('./_lib/purchases');
 const { methodNotAllowed, sendJson } = require('./_lib/http');
 const { verifyAccessToken } = require('./_lib/token');
 const { listSignedAlbumImages } = require('./_lib/storage');
@@ -21,9 +20,6 @@ module.exports = async function handler(req, res) {
 
     const tokenPayload = verifyAccessToken(readBearerToken(req), album.id);
     if (!tokenPayload) return sendJson(res, 401, { error: 'Album access token is missing or expired' });
-
-    const purchase = await findPurchaseBySession(tokenPayload.sessionId, album.id);
-    if (!purchase) return sendJson(res, 403, { error: 'Album purchase was not found' });
 
     const images = await listSignedAlbumImages(album);
     return sendJson(res, 200, { albumId: album.id, images });

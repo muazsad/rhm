@@ -1,6 +1,7 @@
 const PAID_ALBUMS = [
   {
     id: 'ocky-flag-football-2026',
+    aliases: ['spring-classic-2026'],
     title: 'Ocky Flag Football 2026 Photos',
     amountCents: 500,
     currency: 'usd',
@@ -9,7 +10,7 @@ const PAID_ALBUMS = [
 ];
 
 function getPaidAlbum(albumId) {
-  return PAID_ALBUMS.find(album => album.id === albumId) || null;
+  return PAID_ALBUMS.find(album => album.id === albumId || (album.aliases || []).includes(albumId)) || null;
 }
 
 function listPaidAlbumIds() {
