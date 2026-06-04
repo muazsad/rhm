@@ -1,2 +1,5 @@
 .worktrees/
 .claude/
+node_modules/
+.env
+.env.local

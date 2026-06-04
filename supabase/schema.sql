@@ -39,6 +39,15 @@ create table if not exists public.registrations (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.album_purchases (
+  id uuid primary key default gen_random_uuid(),
+  session_id text not null unique,
+  album_id text not null,
+  email text,
+  amount integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.tournament_state (
   id text primary key default 'active',
   is_active boolean not null default true,
@@ -91,6 +100,7 @@ $$;
 alter table public.admin_profiles enable row level security;
 alter table public.events enable row level security;
 alter table public.registrations enable row level security;
+alter table public.album_purchases enable row level security;
 alter table public.tournament_state enable row level security;
 
 drop policy if exists "Admins can read admin profiles" on public.admin_profiles;
@@ -144,6 +154,13 @@ for update
 to authenticated
 using (public.is_admin())
 with check (public.is_admin());
+
+drop policy if exists "Admins can read album purchases" on public.album_purchases;
+create policy "Admins can read album purchases"
+on public.album_purchases
+for select
+to authenticated
+using (public.is_admin());
 
 drop policy if exists "Public can read active tournament" on public.tournament_state;
 create policy "Public can read active tournament"

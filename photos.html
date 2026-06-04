@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>About — RHM</title>
+  <title>Photos — RHM</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="assets/css/photos.css">
   <style>
     :root {
       --green: #2db84b;
@@ -26,15 +26,13 @@
       overflow-x: hidden;
     }
 
-    /* ───── PATTERN ───── */
     #bg-pattern {
       position: fixed; inset: 0;
       width: 100%; height: 100%;
       pointer-events: none; z-index: 0; opacity: 0.038;
     }
-    nav, section, footer { position: relative; z-index: 1; }
+    nav, main, section, footer { position: relative; z-index: 1; }
 
-    /* ───── TOP NAV (ghost) ───── */
     #topnav-ghost {
       position: fixed;
       top: 0; left: 0; right: 0;
@@ -57,7 +55,6 @@
     .tng-links a:hover { color: var(--green); }
     .tng-links a.active { color: var(--green); }
 
-    /* ───── PAGE HERO ───── */
     .page-hero {
       padding: 10rem 3rem 6rem;
       border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -70,31 +67,27 @@
     }
     .page-title {
       font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(3rem, 7vw, 7rem);
+      font-size: clamp(4rem, 8vw, 8rem);
       line-height: 0.9; letter-spacing: 0.03em; color: var(--white);
     }
     .page-sub {
-      margin-top: 2rem;
-      font-size: 1.1rem; font-weight: 300;
+      margin-top: 1.75rem;
+      font-size: 1.05rem; font-weight: 300;
       color: rgba(242,242,238,0.6);
       max-width: 560px; line-height: 1.75;
     }
 
-    /* ───── REVEAL ───── */
     .reveal {
       opacity: 0; transform: translateY(30px);
       transition: opacity 0.65s ease, transform 0.65s ease;
     }
     .reveal.visible { opacity: 1; transform: translateY(0); }
 
-    /* ───── SECTION DIVIDER ───── */
     .section-divider {
       height: 1px;
       background: linear-gradient(to right, transparent, rgba(45,184,75,0.2), transparent);
       margin: 0 3rem;
     }
-
-    /* ───── LABELS & TITLES ───── */
     .section-label {
       font-family: 'DM Sans', sans-serif;
       font-size: 0.7rem; font-weight: 600;
@@ -107,95 +100,6 @@
       line-height: 0.95; color: var(--white); letter-spacing: 0.03em;
     }
 
-    /* ───── MISSION ───── */
-    .mission-section {
-      padding: 8rem 3rem;
-      display: grid;
-      grid-template-columns: 1.1fr 1fr;
-      gap: 7rem;
-      align-items: start;
-    }
-    .mission-quote {
-      border-left: 4px solid var(--green);
-      padding-left: 2.5rem;
-      position: sticky;
-      top: 100px;
-    }
-    .mission-quote p {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(2rem, 3.2vw, 3.2rem);
-      line-height: 1.12; color: var(--white); letter-spacing: 0.03em;
-    }
-    .mission-body {
-      font-size: 1rem; font-weight: 300;
-      color: rgba(242,242,238,0.68); line-height: 1.9;
-    }
-    .mission-body strong { color: var(--green); font-weight: 600; }
-    .mission-body p + p { margin-top: 1.5rem; }
-
-    /* ───── STORY / ANNIVERSARY ───── */
-    .story-section {
-      padding: 8rem 3rem;
-      background: var(--surface);
-    }
-    .story-inner {
-      max-width: 820px;
-    }
-    .story-badge {
-      display: inline-block;
-      background: var(--green);
-      color: var(--black);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.7rem; font-weight: 700;
-      letter-spacing: 0.16em; text-transform: uppercase;
-      padding: 0.3rem 0.7rem; margin-bottom: 1.5rem;
-    }
-    .story-headline {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(2.5rem, 4.5vw, 5rem);
-      line-height: 1.0; color: var(--white); letter-spacing: 0.03em;
-      margin-bottom: 2rem;
-    }
-    .story-text {
-      font-size: 1rem; font-weight: 300;
-      color: rgba(242,242,238,0.68); line-height: 1.9;
-    }
-    .story-text p + p { margin-top: 1.5rem; }
-
-    /* ───── VALUES ───── */
-    .values-section {
-      padding: 8rem 3rem;
-      background: var(--surface);
-    }
-    .values-header { margin-bottom: 3.5rem; }
-    .values-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
-    }
-    .value-card {
-      border-top: 3px solid var(--green);
-      padding: 2.5rem 2rem;
-      border: 1px solid rgba(255,255,255,0.06);
-      border-top: 3px solid var(--green);
-      transition: box-shadow 0.3s;
-    }
-    .value-card:hover { box-shadow: 0 0 30px rgba(45,184,75,0.08); }
-    .value-number {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 3.5rem; color: rgba(45,184,75,0.15);
-      line-height: 1; letter-spacing: 0.03em; margin-bottom: 0.75rem;
-    }
-    .value-name {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 2rem; letter-spacing: 0.05em; color: var(--white);
-      margin-bottom: 0.75rem;
-    }
-    .value-desc {
-      font-size: 0.88rem; color: var(--muted); line-height: 1.7; font-weight: 300;
-    }
-
-    /* ───── FOOTER ───── */
     footer {
       padding: 4.5rem 3rem 2rem;
       border-top: 1px solid rgba(255,255,255,0.06);
@@ -227,16 +131,10 @@
     }
     .footer-bottom p { font-size: 0.78rem; color: rgba(242,242,238,0.25); }
 
-    /* ───── RESPONSIVE ───── */
     @media (max-width: 900px) {
       #topnav-ghost { padding: 1rem 1.5rem; }
       .tng-links { display: none; }
       .page-hero { padding: 8rem 1.5rem 4rem; }
-      .mission-section { grid-template-columns: 1fr; gap: 3rem; padding: 5rem 1.5rem; }
-      .mission-quote { position: static; }
-      .story-section { padding: 5rem 1.5rem; }
-      .values-section { padding: 5rem 1.5rem; }
-      .values-grid { grid-template-columns: 1fr; }
       footer { padding: 4rem 1.5rem 2rem; }
       .footer-grid { grid-template-columns: 1fr; gap: 3rem; }
       .footer-bottom { flex-direction: column; gap: 0.75rem; text-align: center; }
@@ -266,88 +164,67 @@
     <rect width="100%" height="100%" fill="url(#star8)"/>
   </svg>
 
-  <!-- GHOST TOP NAV -->
   <nav id="topnav-ghost">
     <a href="index.html" class="tng-logo">
       <img src="RHM-Logo.png" alt="RHM">
     </a>
     <ul class="tng-links">
       <li><a href="events.html">Events</a></li>
-      <li><a href="photos.html">Photos</a></li>
+      <li><a href="photos.html" class="active">Photos</a></li>
       <li><a href="sponsors.html">Sponsors</a></li>
-      <li><a href="about.html" class="active">About</a></li>
+      <li><a href="about.html">About</a></li>
     </ul>
   </nav>
 
-  <!-- PAGE HERO -->
-  <div class="page-hero">
-    <p class="page-eyebrow">Who We Are</p>
-    <h1 class="page-title">REUNITING<br>HEARTS OF<br>MUSLIMS</h1>
-    <p class="page-sub">
-      A Muslim sports organization built on faith, forged through competition, and growing across New England.
-    </p>
-  </div>
-
-  <div class="section-divider"></div>
-
-  <!-- MISSION -->
-  <section class="mission-section">
-    <div class="mission-quote reveal">
-      <p class="section-label">Our Mission</p>
-      <br>
-      <p>TO FOSTER UNITY AND STRENGTHEN THE BONDS OF THE UMMAH THROUGH SPORT AND COMMUNITY.</p>
+  <main>
+    <div class="page-hero">
+      <p class="page-eyebrow">Event Albums</p>
+      <h1 class="page-title">RHM<br>PHOTOS</h1>
+      <p class="page-sub">
+        Relive the tournaments, community nights, and moments that bring the ummah together.
+      </p>
     </div>
-    <div class="mission-body reveal" style="transition-delay:0.18s">
-      <p>RHM began as an inspired vision shared by three devoted individuals who saw a gap in our community — a place where Muslim athletes could compete, connect, and grow in faith together.</p>
-      <p>From those early conversations, <strong>Reuniting Hearts of Muslims</strong> emerged as a force for connection across New England. We organize leagues, tournaments, pickup games, and community events that bring the ummah together in a spirit of brotherhood and healthy competition.</p>
-      <p>Our mission is not simply to run sports leagues. It is to create a space where Muslim identity and athletic ambition are not in conflict — where you can show up fully as both a believer and a competitor, and where every game is also an act of community building.</p>
-      <p>We believe the deen calls us to strengthen our bonds, and we believe sport is one of the most powerful tools for doing exactly that.</p>
-    </div>
-  </section>
 
-  <div class="section-divider"></div>
-
-  <!-- STORY -->
-  <section class="story-section">
-    <div class="story-inner">
-      <span class="story-badge reveal">New England's Largest</span>
-      <h2 class="story-headline reveal" style="transition-delay:0.1s">THE TOURNAMENT THAT STARTED A MOVEMENT.</h2>
-      <div class="story-text reveal" style="transition-delay:0.2s">
-        <p>What started as a humble gathering of brothers with a shared love of the game has grown into something historic. RHM now hosts New England's largest Muslim basketball tournament — an event that draws teams from across the region, uniting athletes in faith and competition under one roof.</p>
-        <p>Every year the tournament grows. Every year new friendships are forged, new memories made, and the ummah of New England grows stronger. This is not just a tournament — it is a statement that our community thrives, competes, and belongs.</p>
-        <p>The anniversary of RHM's first tournament marks more than a milestone on a calendar. It marks the moment our community decided to show up for itself — and has never stopped since.</p>
+    <section class="photos-section" aria-labelledby="featured-heading">
+      <div class="photos-header">
+        <div>
+          <p class="section-label reveal">Featured Album</p>
+          <h2 class="section-title reveal" id="featured-heading" style="transition-delay:0.1s">CURRENT RELEASE</h2>
+        </div>
+        <p class="photos-note reveal" style="transition-delay:0.16s">Paid albums unlock through Stripe and load from private Supabase Storage with fresh signed links.</p>
       </div>
-    </div>
-  </section>
+      <div class="album-grid featured-grid" id="featured-albums"></div>
+    </section>
 
-  <div class="section-divider"></div>
+    <div class="section-divider"></div>
 
-  <!-- VALUES -->
-  <section class="values-section">
-    <div class="values-header">
-      <p class="section-label reveal">What We Stand For</p>
-      <h2 class="section-title reveal" style="transition-delay:0.1s">OUR VALUES</h2>
-    </div>
-    <div class="values-grid">
-      <div class="value-card reveal">
-        <div class="value-number">01</div>
-        <div class="value-name">Faith</div>
-        <div class="value-desc">Everything we do is grounded in our deen. Faith is not a backdrop to our work — it is the foundation. We play, we organize, and we build community as Muslims first.</div>
+    <section class="photos-section" aria-labelledby="past-heading">
+      <div class="photos-header">
+        <div>
+          <p class="section-label reveal">Archive</p>
+          <h2 class="section-title reveal" id="past-heading" style="transition-delay:0.1s">PAST EVENTS</h2>
+        </div>
       </div>
-      <div class="value-card reveal" style="transition-delay:0.12s">
-        <div class="value-number">02</div>
-        <div class="value-name">Unity</div>
-        <div class="value-desc">The ummah is one. Regardless of background, age, or skill level, every Muslim is welcome at RHM. Sport is a language that transcends all differences and builds lasting bonds.</div>
-      </div>
-      <div class="value-card reveal" style="transition-delay:0.24s">
-        <div class="value-number">03</div>
-        <div class="value-name">Community</div>
-        <div class="value-desc">We are not just an organization — we are a community. We show up for each other on the court and off it. Every event is an opportunity to make the ummah stronger.</div>
-      </div>
-    </div>
-  </section>
+      <div class="album-grid" id="past-albums"></div>
+      <div class="empty-state reveal" id="past-empty">No past event albums yet — check back soon.</div>
+    </section>
 
-  <!-- FOOTER -->
+    <div class="photos-status" id="photos-status" role="status" aria-live="polite"></div>
+
+    <section class="gallery-section" id="album-gallery" hidden>
+      <div class="gallery-panel">
+        <div class="gallery-top">
+          <div>
+            <p class="section-label">Unlocked Gallery</p>
+            <h2 id="gallery-title">Album</h2>
+          </div>
+          <p id="gallery-meta"></p>
+        </div>
+        <div class="gallery-grid" id="gallery-grid"></div>
+      </div>
+    </section>
+  </main>
+
   <footer>
     <div class="footer-grid">
       <div class="footer-brand">
@@ -390,11 +267,15 @@
     </div>
   </footer>
 
-  <script>
-    const obs = new IntersectionObserver(entries => {
-      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
-    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-    document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
-  </script>
+  <div class="lightbox" id="photo-lightbox" hidden aria-modal="true" role="dialog" aria-label="Photo viewer">
+    <button class="lightbox-close" id="lightbox-close" type="button" aria-label="Close photo viewer">×</button>
+    <button class="lightbox-control" id="lightbox-prev" type="button" aria-label="Previous photo">‹</button>
+    <img id="lightbox-image" src="" alt="">
+    <button class="lightbox-control" id="lightbox-next" type="button" aria-label="Next photo">›</button>
+    <span class="lightbox-count" id="lightbox-count"></span>
+  </div>
+
+  <script src="assets/js/albums.js"></script>
+  <script src="assets/js/photos.js"></script>
 </body>
 </html>
