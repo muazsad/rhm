@@ -90,6 +90,7 @@
       enabled: input.enabled === true,
       paymentRequired: input.paymentRequired === true,
       paymentLink: input.paymentLink || '',
+      registrationLink: input.registrationLink || '',
       questions: cloneQuestions(questions).map(normalizeQuestion)
     };
   }

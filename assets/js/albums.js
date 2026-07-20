@@ -2,7 +2,7 @@
   window.RHM_ALBUMS = [
     {
       id: "ocky-flag-football-2026",
-      title: "Ocky Flag Football 2026",
+      title: "Flag Football 2026",
       date: "May 2026",
       section: "featured",
       cover: "assets/photos/covers/ocky-flag-football-2026.jpg",

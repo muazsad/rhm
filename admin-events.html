@@ -457,6 +457,10 @@
               <label for="reg-payment-link">Stripe Payment Link</label>
               <input type="url" id="reg-payment-link" placeholder="Add later, e.g. https://buy.stripe.com/...">
             </div>
+            <div class="field">
+              <label for="reg-external-link">External Registration Link</label>
+              <input type="url" id="reg-external-link" placeholder="e.g. https://tinyurl.com/rhmball">
+            </div>
             <div id="reg-builder"></div>
           </div>
 
@@ -615,6 +619,7 @@
         enabled: document.getElementById('reg-enabled').checked,
         paymentRequired: document.getElementById('reg-payment-required').checked,
         paymentLink: document.getElementById('reg-payment-link').value.trim(),
+        registrationLink: document.getElementById('reg-external-link').value.trim(),
         questions: registrationQuestions
       });
     }
@@ -746,6 +751,7 @@
       document.getElementById('reg-enabled').checked = true;
       document.getElementById('reg-payment-required').checked = false;
       document.getElementById('reg-payment-link').value = '';
+      document.getElementById('reg-external-link').value = '';
       registrationQuestions = defaultRegistrationQuestions();
       renderRegistrationBuilder();
       toggleRegistrationBuilder();
@@ -768,6 +774,7 @@
       document.getElementById('reg-enabled').checked = ev.registration?.enabled === true;
       document.getElementById('reg-payment-required').checked = ev.registration?.paymentRequired === true;
       document.getElementById('reg-payment-link').value = ev.registration?.paymentLink || '';
+      document.getElementById('reg-external-link').value = ev.registration?.registrationLink || '';
       registrationQuestions = JSON.parse(JSON.stringify(ev.registration?.questions || defaultRegistrationQuestions()));
       renderRegistrationBuilder();
       toggleRegistrationBuilder();

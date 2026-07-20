@@ -6,7 +6,9 @@
     index: 0,
     touchStartX: 0,
     nextCursor: null,
-    loadingMore: false
+    loadingMore: false,
+    isAdmin: false,
+    adminToken: null
   };
 
   const els = {};
@@ -52,9 +54,9 @@
 
   function albumCard(album) {
     const hasToken = Boolean(getToken(album.id));
-    const isLocked = album.locked && !hasToken;
+    const isLocked = album.locked && !hasToken && !state.isAdmin;
     const action = isLocked ? "Unlock Album" : "View Album";
-    const badge = album.locked ? `${escapeHtml(album.price)} Access` : "Free Album";
+    const badge = album.locked && !state.isAdmin ? `${escapeHtml(album.price)} Access` : "Free Album";
 
     return `
       <article class="album-card reveal" data-album-id="${escapeHtml(album.id)}">
@@ -93,7 +95,11 @@
     const album = albums.find(item => item.id === albumId);
     if (!album) return;
 
-    if (!album.locked) {
+    if (!album.locked || state.isAdmin) {
+      if (state.isAdmin && album.locked) {
+        await loadAdminAlbum(album);
+        return;
+      }
       renderGallery(album, Array.isArray(album.images) ? album.images : []);
       setStatus("Free album ready. Add public image URLs in albums.js if you want a free gallery preview.", "neutral");
       return;
@@ -106,6 +112,25 @@
     }
 
     await startCheckout(album);
+  }
+
+  async function loadAdminAlbum(album, cursor = "0", append = false) {
+    if (state.loadingMore) return;
+    state.loadingMore = true;
+    if (!append) setStatus(`Loading ${album.title}...`);
+
+    const response = await fetch(`/api/admin-album-access?album=${encodeURIComponent(album.id)}&cursor=${encodeURIComponent(cursor)}&limit=40`, {
+      headers: { Authorization: `Bearer ${state.adminToken}` }
+    });
+    const payload = await response.json().catch(() => ({}));
+    state.loadingMore = false;
+
+    if (!response.ok) {
+      setStatus(payload.error || "Unable to load album.", "error");
+      return;
+    }
+
+    renderGallery(album, payload.images || [], payload.nextCursor || null, append);
   }
 
   async function startCheckout(album) {
@@ -275,7 +300,7 @@
     });
   }
 
-  function init() {
+  async function init() {
     els.featured = document.getElementById("featured-albums");
     els.past = document.getElementById("past-albums");
     els.pastEmpty = document.getElementById("past-empty");
@@ -292,14 +317,42 @@
     els.lightboxNext = document.getElementById("lightbox-next");
     els.loadMore = document.getElementById("gallery-load-more");
 
+    await checkAdminSession();
     renderAlbums();
     bindLightbox();
     els.loadMore.addEventListener("click", () => {
       if (!state.openAlbum || !state.nextCursor) return;
       els.loadMore.disabled = true;
-      loadAlbumWithToken(state.openAlbum, getToken(state.openAlbum.id), state.nextCursor, true);
+      if (state.isAdmin && state.openAlbum.locked) {
+        loadAdminAlbum(state.openAlbum, state.nextCursor, true);
+      } else {
+        loadAlbumWithToken(state.openAlbum, getToken(state.openAlbum.id), state.nextCursor, true);
+      }
     });
     verifyReturnSession();
+  }
+
+  async function checkAdminSession() {
+    try {
+      if (!window.RHM_SUPABASE_READY || !window.RHM || !window.RHM.getSupabaseClient) return;
+      const client = window.RHM.getSupabaseClient();
+      if (!client) return;
+      const { data: { session } } = await client.auth.getSession();
+      if (!session || !session.user || !session.access_token) return;
+
+      const { data: profile } = await client
+        .from("admin_profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (!profile || profile.role !== "admin") return;
+
+      state.isAdmin = true;
+      state.adminToken = session.access_token;
+    } catch {
+      // Not an admin — silently ignore
+    }
   }
 
   document.addEventListener("DOMContentLoaded", init);

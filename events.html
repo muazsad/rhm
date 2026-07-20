@@ -595,7 +595,6 @@
         <div class="event-ctas">
           <a href="#registration-modal" class="btn-primary" data-register-event>Register Now →</a>
           <a href="#" class="btn-outline">Learn More</a>
-          <a href="tournament-live.html" class="btn-outline" style="border-color:var(--green);color:var(--green);">View Live Results</a>
         </div>
       </div>
     </div>
@@ -769,8 +768,8 @@
               <p class="event-description">${escapeEventText(event.description || event.sportLabel)}</p>
             </div>
             <div class="event-ctas">
-              ${event.registration?.enabled ? `<a href="#registration-modal" class="btn-primary" data-register-event data-event-id="${escapeEventText(event.id)}">Register Now →</a>` : ''}
-              <a href="tournament-live.html" class="btn-outline" style="border-color:var(--green);color:var(--green);">View Live Results</a>
+              ${event.registration?.registrationLink ? `<a href="${escapeEventText(event.registration.registrationLink)}" class="btn-primary" target="_blank" rel="noopener noreferrer">Register Now →</a>` : (event.registration?.enabled ? `<a href="#registration-modal" class="btn-primary" data-register-event data-event-id="${escapeEventText(event.id)}">Register Now →</a>` : '')}
+              ${event.tournamentLinked ? `<a href="tournament-live.html" class="btn-outline" style="border-color:var(--green);color:var(--green);">View Live Results</a>` : ''}
             </div>
           </div>
         </div>
@@ -937,8 +936,12 @@
 
     async function hydratePublicEvents() {
       if (!window.RHM_SUPABASE_READY) return;
-      const events = await window.RHMEventsStore.listPublishedEvents();
+      let events = await window.RHMEventsStore.listPublishedEvents();
       if (!events.length) return;
+      const linkedEvent = window.RHMEventsStore.getLinkedEvent();
+      if (linkedEvent) {
+        events = events.map(ev => Object.assign({}, ev, { tournamentLinked: ev.id === linkedEvent.id }));
+      }
       publicEvents = events;
       document.getElementById('events-list').innerHTML = events.map(renderPublicEvent).join('');
     }
