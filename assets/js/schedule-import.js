@@ -45,8 +45,9 @@
     if (flat.indexOf('time') >= 0 && flat.indexOf('field') >= 0 && flat.indexOf('team') >= 0) {
       return 'flat';
     }
-    var a1 = String(header[0] || '').trim().toLowerCase();
-    if (a1 === '' || a1 === 'field') {
+    var a1 = String(header[0] || '').trim();
+    var a1IsTime = /^\d{1,2}:\d{2}\s*(am|pm)?$/i.test(a1);
+    if (!a1IsTime) {
       var hasTime = header.slice(1).some(function (cell) {
         return /^\d{1,2}:\d{2}\s*(am|pm)?$/i.test(String(cell || '').trim());
       });
@@ -187,11 +188,12 @@
   // ── Matrix parser ───────────────────────────────────────────────────────────
 
   function parseMatrix(rows, tournamentFormat) {
-    if (!rows || rows.length < 2) return buildFixturesFromGames([]);
+    if (!rows || rows.length < 2) return Object.assign(buildFixturesFromGames([]), { errors: [] });
     var header = rows[0];
     var timeHeaders = header.slice(1).map(function (c) { return String(c || '').trim(); });
     var fieldRows = rows.slice(1);
     var games = [];
+    var errors = [];
 
     fieldRows.forEach(function (row) {
       var fieldName = String(row[0] || '').trim();
@@ -200,7 +202,10 @@
         var cell = String(row[ci + 1] || '').trim();
         if (!cell) return;
         var vsIdx = cell.search(/ vs /i);
-        if (vsIdx < 0) return;
+        if (vsIdx < 0) {
+          errors.push({ court: fieldName, timeSlot: timeStr, cell: cell, message: 'Cell "' + cell + '" does not split into two teams (expected "Team A vs Team B")' });
+          return;
+        }
         var teamA = cell.slice(0, vsIdx).trim();
         var teamB = cell.slice(vsIdx + 4).trim();
         var isPlayoff = PLAYOFF_RE.test(cell);
@@ -223,7 +228,7 @@
       if (!g.isPlayoff && !g.groupName) g.groupName = defaultGroupName;
     });
 
-    return buildFixturesFromGames(games);
+    return Object.assign(buildFixturesFromGames(games), { errors: errors });
   }
 
   // ── Flat parser ─────────────────────────────────────────────────────────────
@@ -231,7 +236,7 @@
   var GROUP_PHASE_RE = /^(group|league|pool)/i;
 
   function parseFlat(rows) {
-    if (!rows || rows.length < 2) return buildFixturesFromGames([]);
+    if (!rows || rows.length < 2) return Object.assign(buildFixturesFromGames([]), { errors: [] });
     var header = rows[0].map(function (c) { return String(c || '').trim().toLowerCase(); });
 
     function col(keywords) {
@@ -259,7 +264,8 @@
     }
 
     var games = [];
-    rows.slice(1).forEach(function (row) {
+    var errors = [];
+    rows.slice(1).forEach(function (row, ri) {
       if (!row.some(function (c) { return String(c || '').trim(); })) return;
       var timeStr   = colTime  >= 0 ? String(row[colTime]  || '').trim() : '';
       var fieldName = colField >= 0 ? String(row[colField] || '').trim() : 'Field 1';
@@ -267,6 +273,11 @@
       var teamA     = colTeamA >= 0 ? String(row[colTeamA] || '').trim() : '';
       var teamB     = colTeamB >= 0 ? String(row[colTeamB] || '').trim() : '';
       var round     = colRound >= 0 ? String(row[colRound] || '').trim() : '';
+
+      if (!teamA || !teamB) {
+        errors.push({ rowNumber: ri + 2, message: 'Row is missing a team name (Team A: "' + teamA + '", Team B: "' + teamB + '")' });
+        return;
+      }
 
       var isPlayoff = PLAYOFF_RE.test(round) && !GROUP_PHASE_RE.test(round);
       games.push({
@@ -279,7 +290,37 @@
       });
     });
 
-    return buildFixturesFromGames(games);
+    return Object.assign(buildFixturesFromGames(games), { errors: errors });
+  }
+
+  // ── Dimension validation ────────────────────────────────────────────────────
+
+  function checkDimensions(rows) {
+    if (!rows || rows.length < 1) return [];
+    var expected = rows[0].length;
+    var issues = [];
+    rows.slice(1).forEach(function (row, ri) {
+      if (row.length !== expected) {
+        issues.push({ rowNumber: ri + 2, expected: expected, actual: row.length });
+      }
+    });
+    return issues;
+  }
+
+  // ── Roster validation ───────────────────────────────────────────────────────
+
+  function findUnknownTeams(fixtures, rosterTeams) {
+    var roster = (rosterTeams || []).map(function (t) { return String(t || '').trim().toLowerCase(); }).filter(Boolean);
+    if (!roster.length) return [];
+    var seen = [];
+    (fixtures || []).forEach(function (f) {
+      [f.teamA, f.teamB].forEach(function (t) {
+        var name = String(t || '').trim();
+        if (!name) return;
+        if (roster.indexOf(name.toLowerCase()) < 0 && seen.indexOf(name) < 0) seen.push(name);
+      });
+    });
+    return seen;
   }
 
   window.RHMScheduleImport = {
@@ -287,7 +328,9 @@
     detectFormat: detectFormat,
     parseMatrix: parseMatrix,
     parseFlat: parseFlat,
-    buildFixturesFromGames: buildFixturesFromGames
+    buildFixturesFromGames: buildFixturesFromGames,
+    checkDimensions: checkDimensions,
+    findUnknownTeams: findUnknownTeams
   };
 
 })(window);

@@ -83,6 +83,12 @@ test('detectFormat returns null for unrecognised layout', () => {
   assert.equal(imp.detectFormat([['Foo','Bar','Baz']]), null);
 });
 
+test('detectFormat identifies matrix format with "Court" label', () => {
+  const imp = load();
+  const rows = [['Court','12:00 PM','12:30 PM'],['Court 1','Alpha vs Beta','']];
+  assert.equal(imp.detectFormat(rows), 'matrix');
+});
+
 // ── Matrix parser ───────────────────────────────────────────────────────────
 
 test('parseMatrix produces correct fixtures from a simple 2-field schedule', () => {
@@ -147,6 +153,20 @@ test('parseMatrix slots are sorted by time', () => {
   assert.equal(sorted[1].teamA, 'C');
 });
 
+test('parseMatrix flags a non-empty cell that does not split into two teams', () => {
+  const imp = load();
+  const rows = [
+    ['Field', '10:00 AM', '10:30 AM'],
+    ['Field 1', 'Alpha vs Beta', 'Gamma Delta only one side']
+  ];
+  const result = imp.parseMatrix(rows, 'league');
+  assert.equal(result.fixtures.length, 1);
+  assert.equal(result.errors.length, 1);
+  assert.equal(result.errors[0].court, 'Field 1');
+  assert.equal(result.errors[0].timeSlot, '10:30 AM');
+  assert.match(result.errors[0].message, /vs/i);
+});
+
 // ── Flat parser ─────────────────────────────────────────────────────────────
 
 test('parseFlat produces correct fixtures from flat rows', () => {
@@ -193,4 +213,59 @@ test('fixture groupId values are group-a, group-b etc matching group array ids',
   fixtureGroupIds.forEach(id => {
     assert.ok(groupIds.includes(id), 'fixture groupId ' + id + ' not in groups array');
   });
+});
+
+test('parseFlat flags a row missing one of the two team names', () => {
+  const imp = load();
+  const rows = [
+    ['Time', 'Field', 'Group', 'Team A', 'Team B', 'Round'],
+    ['10:00 AM', 'Field 1', 'Group A', 'Alpha', '', 'Group Stage']
+  ];
+  const result = imp.parseFlat(rows);
+  assert.equal(result.fixtures.length, 0);
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0].message, /team/i);
+});
+
+// ── Dimension validation ────────────────────────────────────────────────────
+
+test('checkDimensions flags a data row with fewer columns than the header', () => {
+  const imp = load();
+  const rows = [
+    ['Court', '12:00 PM', '12:30 PM'],
+    ['Court 1', 'Alpha vs Beta']
+  ];
+  const issues = imp.checkDimensions(rows);
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].rowNumber, 2);
+  assert.equal(issues[0].expected, 3);
+  assert.equal(issues[0].actual, 2);
+});
+
+test('checkDimensions returns empty array when all rows match header width', () => {
+  const imp = load();
+  const rows = [
+    ['Court', '12:00 PM'],
+    ['Court 1', 'Alpha vs Beta'],
+    ['Court 2', 'Gamma vs Delta']
+  ];
+  assert.deepEqual(JSON.parse(JSON.stringify(imp.checkDimensions(rows))), []);
+});
+
+// ── Roster validation ───────────────────────────────────────────────────────
+
+test('findUnknownTeams flags team names absent from the known roster', () => {
+  const imp = load();
+  const fixtures = [
+    { teamA: 'Alpha', teamB: 'Beta' },
+    { teamA: 'Zeta', teamB: 'Alpha' }
+  ];
+  const unknown = imp.findUnknownTeams(fixtures, ['Alpha', 'Beta']);
+  assert.deepEqual(JSON.parse(JSON.stringify(unknown)), ['Zeta']);
+});
+
+test('findUnknownTeams returns empty array when roster is empty', () => {
+  const imp = load();
+  const fixtures = [{ teamA: 'Alpha', teamB: 'Beta' }];
+  assert.deepEqual(JSON.parse(JSON.stringify(imp.findUnknownTeams(fixtures, []))), []);
 });

@@ -269,6 +269,30 @@
 
     /* ── NOTICE ── */
     .notice { padding: 2rem; border: 1px dashed var(--border2); color: var(--muted); font-size: 13px; text-align: center; }
+
+    /* ── CSV IMPORT ── */
+    .csv-import-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .csv-file-label {
+      display: inline-block; border: 1px dashed var(--border2); padding: 0.75rem 1.25rem;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; color: var(--muted);
+      cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .csv-file-label:hover { border-color: var(--green); color: var(--green); }
+    .csv-import-hint { color: var(--muted); font-size: 11px; }
+    .csv-import-errors {
+      margin-top: 1rem; border: 1px solid #e05555; background: rgba(224,85,85,0.08);
+      padding: 1rem 1.25rem; max-height: 220px; overflow-y: auto;
+    }
+    .csv-import-errors .cie-title { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #e05555; margin-bottom: 0.5rem; }
+    .csv-import-errors ul { margin: 0; padding-left: 1.1rem; color: var(--white); font-size: 12px; line-height: 1.6; }
+    .csv-import-warnings {
+      margin-top: 1rem; border: 1px solid #d9a441; background: rgba(217,164,65,0.08);
+      padding: 1rem 1.25rem; max-height: 180px; overflow-y: auto;
+    }
+    .csv-import-warnings .ciw-title { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #d9a441; margin-bottom: 0.5rem; }
+    .csv-import-warnings ul { margin: 0; padding-left: 1.1rem; color: var(--white); font-size: 12px; line-height: 1.6; }
+    .csv-import-summary { color: var(--white); font-size: 13px; line-height: 1.6; margin-bottom: 0.25rem; }
+    .csv-import-summary b { color: var(--green); }
     .modal-backdrop {
       position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,0.74);
       display: flex; align-items: center; justify-content: center; padding: 1rem;
@@ -462,6 +486,19 @@
     <div style="text-align:center;padding-top:0.5rem;">
       <button class="btn-primary" id="generate-schedule-btn" style="padding:0.9rem 3.5rem;font-size:1.2rem;" onclick="generateSchedule()">Generate Schedule</button>
     </div>
+
+    <div class="s-card" style="margin-top:1.5rem;">
+      <div class="s-title">Import Schedule from CSV</div>
+      <div class="csv-import-row">
+        <label class="csv-file-label" for="csv-import-input">Choose CSV File</label>
+        <input type="file" id="csv-import-input" accept=".csv" style="display:none;" onchange="handleCsvFileSelect(event)">
+        <span class="csv-import-hint" id="csv-import-filename">No file selected</span>
+      </div>
+      <div class="csv-import-hint" style="margin-top:0.6rem;">
+        Accepts a court/field-by-time-slot matrix export (columns = time slots) or a flat file with Time, Field, Team A, Team B columns. Cells like "Team A vs Team B".
+      </div>
+      <div id="csv-import-errors"></div>
+    </div>
   </div>
 
   <!-- ───── TAB 2: SCHEDULE ───── -->
@@ -533,6 +570,20 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="csv-import-modal" hidden>
+    <div class="modal-card" style="width:min(620px,100%);">
+      <div class="modal-title">Import Schedule</div>
+      <div class="modal-meta" id="csv-import-meta"></div>
+      <div id="csv-import-summary-body"></div>
+      <div id="csv-import-warnings-body"></div>
+      <div class="modal-meta" style="margin-top:1rem;color:var(--white);">This will replace the current schedule — continue?</div>
+      <div class="modal-actions">
+        <button class="btn-sm-outline" onclick="cancelCsvImport()">Cancel</button>
+        <button class="btn-primary" id="csv-import-confirm-btn" onclick="confirmCsvImport()">Replace Schedule</button>
+      </div>
+    </div>
+  </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/supabase-config.js"></script>
 <script src="assets/js/admin-auth.js"></script>
@@ -540,6 +591,7 @@
 <script src="assets/js/tournament-standings.js"></script>
 <script src="assets/js/tournament-engine.js"></script>
 <script src="assets/js/tournament-store.js"></script>
+<script src="assets/js/schedule-import.js"></script>
 <script>
 const GL = ['A','B','C','D'];
 
@@ -969,6 +1021,140 @@ function groupsForUi(groups) {
       teams: teams
     };
   });
+}
+
+// ── CSV IMPORT ──
+let pendingCsvImport = null;
+
+function renderCsvErrorBox(messages) {
+  return '<div class="csv-import-errors"><div class="cie-title">' + messages.length + ' Problem' + (messages.length === 1 ? '' : 's') + ' Found</div><ul>' +
+    messages.map(m => '<li>' + eh(m) + '</li>').join('') + '</ul></div>';
+}
+
+function handleCsvFileSelect(event) {
+  const file = event.target.files && event.target.files[0];
+  const nameEl = document.getElementById('csv-import-filename');
+  const errEl = document.getElementById('csv-import-errors');
+  errEl.innerHTML = '';
+  pendingCsvImport = null;
+  if (!file) { nameEl.textContent = 'No file selected'; return; }
+  nameEl.textContent = file.name;
+  if (!/\.csv$/i.test(file.name)) {
+    errEl.innerHTML = renderCsvErrorBox(['Please choose a .csv file.']);
+    event.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => runCsvImport(String(reader.result || ''), file.name);
+  reader.onerror = () => { errEl.innerHTML = renderCsvErrorBox(['Could not read the file.']); };
+  reader.readAsText(file);
+}
+
+function runCsvImport(text, fileName) {
+  const errEl = document.getElementById('csv-import-errors');
+  errEl.innerHTML = '';
+  const imp = window.RHMScheduleImport;
+  const rows = imp.parseCSV(text);
+  if (rows.length < 2) {
+    errEl.innerHTML = renderCsvErrorBox(['The file needs a header row and at least one data row.']);
+    return;
+  }
+
+  const dimIssues = imp.checkDimensions(rows);
+  const format = imp.detectFormat(rows);
+  if (!format) {
+    errEl.innerHTML = renderCsvErrorBox(['Could not recognize this CSV as either a matrix schedule (courts × time slots) or a flat schedule (Time, Field, Team A, Team B columns).']);
+    return;
+  }
+
+  const div = activeDivision();
+  const result = format === 'matrix' ? imp.parseMatrix(rows) : imp.parseFlat(rows);
+
+  const messages = [];
+  dimIssues.forEach(issue => {
+    messages.push('Row ' + issue.rowNumber + ': expected ' + issue.expected + ' columns, found ' + issue.actual + '.');
+  });
+  (result.errors || []).forEach(err => {
+    messages.push(err.rowNumber
+      ? ('Row ' + err.rowNumber + ': ' + err.message)
+      : ((err.court ? err.court + ' @ ' + err.timeSlot + ': ' : '') + err.message));
+  });
+
+  if (messages.length) {
+    errEl.innerHTML = renderCsvErrorBox(messages);
+    return;
+  }
+
+  if (!result.fixtures.length) {
+    errEl.innerHTML = renderCsvErrorBox(['No matchups were found in this file.']);
+    return;
+  }
+
+  const roster = [];
+  (div.groups || []).forEach(g => (g.teams || []).forEach(t => { if (String(t || '').trim()) roster.push(t); }));
+  const unknownTeams = imp.findUnknownTeams(result.fixtures, roster);
+
+  pendingCsvImport = { result: result, format: format, fileName: fileName, unknownTeams: unknownTeams };
+  openCsvImportModal();
+}
+
+function openCsvImportModal() {
+  if (!pendingCsvImport) return;
+  const { result, format, fileName, unknownTeams } = pendingCsvImport;
+  document.getElementById('csv-import-meta').textContent = fileName + ' — ' + (format === 'matrix' ? 'Matrix format' : 'Flat format') + ' detected';
+  document.getElementById('csv-import-summary-body').innerHTML =
+    '<div class="csv-import-summary">Imported <b>' + result.fixtures.length + '</b> matchup' + (result.fixtures.length === 1 ? '' : 's') +
+    ' across <b>' + result.venues.length + '</b> court' + (result.venues.length === 1 ? '' : 's') +
+    ' and <b>' + result.groups.length + '</b> stage' + (result.groups.length === 1 ? '' : 's') + ' (' +
+    result.groups.map(g => eh(g.name)).join(', ') + ').</div>';
+
+  const warnEl = document.getElementById('csv-import-warnings-body');
+  warnEl.innerHTML = unknownTeams.length
+    ? '<div class="csv-import-warnings"><div class="ciw-title">' + unknownTeams.length + ' Unrecognized Team Name' + (unknownTeams.length === 1 ? '' : 's') + '</div><ul>' +
+      unknownTeams.map(t => '<li>' + eh(t) + ' does not match any team already entered in Setup.</li>').join('') + '</ul></div>'
+    : '';
+
+  document.getElementById('csv-import-modal').hidden = false;
+}
+
+function cancelCsvImport() {
+  pendingCsvImport = null;
+  document.getElementById('csv-import-modal').hidden = true;
+  const input = document.getElementById('csv-import-input');
+  if (input) input.value = '';
+  document.getElementById('csv-import-filename').textContent = 'No file selected';
+}
+
+function confirmCsvImport() {
+  if (!pendingCsvImport) return;
+  const { result } = pendingCsvImport;
+  const div = activeDivision();
+
+  div.settings = Object.assign({}, div.settings, {
+    numFields: result.venues.length || div.settings.numFields,
+    numGroups: result.groups.length || div.settings.numGroups
+  });
+  div.venues = result.venues;
+  div.groups = result.groups.map(g => ({ id: g.id, name: g.name, teams: g.teams.slice() }));
+  div.fixtures = result.fixtures;
+  div.scheduleSummary = result.summary;
+  div.schedulingMode = 'manual';
+  syncLegacyTournamentFields();
+  save();
+
+  pendingCsvImport = null;
+  document.getElementById('csv-import-modal').hidden = true;
+  document.getElementById('csv-import-input').value = '';
+  document.getElementById('csv-import-filename').textContent = 'No file selected';
+  document.getElementById('csv-import-errors').innerHTML = '';
+
+  const fieldsInput = document.getElementById('t-fields');
+  const groupsInput = document.getElementById('t-groups');
+  if (fieldsInput) fieldsInput.value = div.venues.length;
+  if (groupsInput) groupsInput.value = div.groups.length;
+  renderVenues();
+  renderGroups();
+  switchTab('schedule');
 }
 
 // ── SCHEDULE GENERATION ──
