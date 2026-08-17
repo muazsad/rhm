@@ -8,6 +8,15 @@
       cover: "assets/photos/covers/ocky-flag-football-2026.jpg",
       locked: true,
       price: "$5"
+    },
+    {
+      id: "rhm-2026-basketball-tournament",
+      title: "RHM 2026 Basketball Tournament",
+      date: "August 2026",
+      section: "featured",
+      cover: "assets/photos/covers/rhm-2026-basketball-tournament.jpg",
+      locked: true,
+      price: "$3"
     }
 
     // To add a future past album, upload a public low-res cover and add:

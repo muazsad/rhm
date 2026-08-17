@@ -6,6 +6,14 @@ const PAID_ALBUMS = [
     amountCents: 500,
     currency: 'usd',
     storagePrefix: 'Ocky Flag Football 2026'
+  },
+  {
+    id: 'rhm-2026-basketball-tournament',
+    aliases: [],
+    title: 'RHM 2026 Basketball Tournament Photos',
+    amountCents: 300,
+    currency: 'usd',
+    storagePrefix: 'RHM 2026 Basketball Tournament'
   }
 ];
 

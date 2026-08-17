@@ -72,11 +72,14 @@ test('server album catalog maps album IDs to server-held checkout amounts', () =
   delete require.cache[require.resolve('../api/_lib/albums')];
   const { getPaidAlbum, listPaidAlbumIds } = require('../api/_lib/albums');
 
-  assert.deepEqual(listPaidAlbumIds(), ['ocky-flag-football-2026']);
+  assert.deepEqual(listPaidAlbumIds(), ['ocky-flag-football-2026', 'rhm-2026-basketball-tournament']);
   assert.equal(getPaidAlbum('ocky-flag-football-2026').amountCents, 500);
   assert.equal(getPaidAlbum('ocky-flag-football-2026').currency, 'usd');
   assert.equal(getPaidAlbum('ocky-flag-football-2026').storagePrefix, 'Ocky Flag Football 2026');
   assert.equal(getPaidAlbum('spring-classic-2026').id, 'ocky-flag-football-2026');
+  assert.equal(getPaidAlbum('rhm-2026-basketball-tournament').amountCents, 300);
+  assert.equal(getPaidAlbum('rhm-2026-basketball-tournament').currency, 'usd');
+  assert.equal(getPaidAlbum('rhm-2026-basketball-tournament').storagePrefix, 'RHM 2026 Basketball Tournament');
   assert.equal(getPaidAlbum('missing-album'), null);
 
   delete require.cache[require.resolve('../api/_lib/albums')];
