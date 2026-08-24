@@ -620,6 +620,35 @@
     }
     window.renderScheduleTab = renderScheduleTab;
 
+    function renderStandingsTab() {
+      var body = document.getElementById('standings-tab-body');
+      if (currentLeague.state.teams.length === 0) {
+        body.innerHTML = '<div class="empty-note">Add teams to see standings.</div>';
+        return;
+      }
+      var config = window.RHMLeagueStore.leagueToStandingsConfig(currentLeague);
+      var result = window.RHMTournamentStandings.computeStandings(config)[0];
+      var rows = result ? result.rows : [];
+
+      body.innerHTML = '<table class="stg-tbl"><thead><tr>' +
+        '<th>Rank</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>Diff</th>' +
+        '</tr></thead><tbody>' +
+        rows.map(function (row) {
+          var diffClass = row.diff > 0 ? 'diff-p' : (row.diff < 0 ? 'diff-n' : '');
+          return '<tr>' +
+            '<td class="stg-rank">' + row.rank + '</td>' +
+            '<td>' + eh(row.team) + '</td>' +
+            '<td>' + row.wins + '</td>' +
+            '<td>' + row.losses + '</td>' +
+            '<td>' + row.pf + '</td>' +
+            '<td>' + row.pa + '</td>' +
+            '<td class="' + diffClass + '">' + (row.diff > 0 ? '+' : '') + row.diff + '</td>' +
+            '</tr>';
+        }).join('') +
+        '</tbody></table>';
+    }
+    window.renderStandingsTab = renderStandingsTab;
+
     (async function init() {
       await loadAndRenderLeagues();
     })();
