@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RHM Admin — League Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green: #2db84b;
+      --black: #0a0a0a;
+      --white: #f2f2ee;
+      --muted: #888;
+      --surface: #111;
+      --surface2: #161616;
+      --border: #1e1e1e;
+      --border2: #2a2a2a;
+      --red: #e05555;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+    /* ── NAVBAR ── */
+    .admin-nav { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 2.5rem; height: 64px; }
+    .nav-left { display: flex; align-items: center; gap: 1rem; }
+    .nav-left a { display: flex; align-items: center; }
+    .nav-left img { height: 36px; width: auto; }
+    .nav-label { font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); border-left: 1px solid var(--border2); padding-left: 1rem; }
+    .nav-right a { font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+    .nav-right a:hover { color: var(--green); }
+
+    /* ── MAIN ── */
+    .main { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem 5rem; }
+    .page-label { font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--green); margin-bottom: 0.6rem; }
+    .page-headline { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; letter-spacing: 0.06em; color: var(--white); margin-bottom: 2rem; line-height: 1; }
+
+    /* ── BUTTONS ── */
+    .btn-primary { background: var(--green); color: #fff; border: none; font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 0.08em; padding: 0.65rem 1.4rem; cursor: pointer; }
+    .btn-primary:hover { background: #27a343; }
+    .btn-outline { background: none; border: 1px solid var(--border2); color: var(--white); font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem; letter-spacing: 0.08em; padding: 0.6rem 1.2rem; cursor: pointer; }
+    .btn-outline:hover { border-color: var(--green); color: var(--green); }
+    .btn-small { background: none; border: 1px solid var(--border2); color: var(--muted); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.4rem 0.8rem; cursor: pointer; }
+    .btn-small:hover { border-color: var(--green); color: var(--green); }
+    .btn-danger { background: none; border: 1px solid var(--red); color: var(--red); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.4rem 0.8rem; cursor: pointer; }
+    .btn-danger:hover { background: rgba(224,85,85,0.1); }
+
+    /* ── LEAGUE LIST ── */
+    .list-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .league-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem; }
+    .league-card { background: var(--surface); border: 1px solid var(--border); padding: 1.5rem; cursor: pointer; transition: border-color 0.2s; }
+    .league-card:hover { border-color: var(--green); }
+    .league-card-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .league-card-meta { font-size: 12px; color: var(--muted); margin-bottom: 0.75rem; }
+    .status-badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.25rem 0.6rem; }
+    .status-draft { background: rgba(136,136,136,0.15); color: var(--muted); }
+    .status-published { background: rgba(45,184,75,0.15); color: var(--green); }
+    .status-archived { background: rgba(136,136,136,0.08); color: #555; }
+    .empty-note { color: var(--muted); font-size: 13px; padding: 2rem 0; }
+
+    /* ── NEW LEAGUE FORM ── */
+    .new-league-panel { background: var(--surface); border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1.5rem; display: none; }
+    .new-league-panel.active { display: block; }
+    .field { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+    .field label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .field input, .field select { background: var(--black); border: 1px solid var(--border2); color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 0.6rem 0.75rem; }
+    .field input:focus, .field select:focus { outline: none; border-color: var(--green); }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+    /* ── EDITOR ── */
+    #view-editor { display: none; }
+    #view-editor.active { display: block; }
+    #view-list.hidden { display: none; }
+    .editor-topbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .editor-topbar-left { display: flex; align-items: center; gap: 0.75rem; }
+    .back-link { color: var(--muted); text-decoration: none; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .back-link:hover { color: var(--green); }
+    .editor-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+    .tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.75rem; overflow-x: auto; }
+    .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem; letter-spacing: 0.08em; padding: 0.85rem 1.4rem; cursor: pointer; white-space: nowrap; }
+    .tab-btn:hover { color: var(--white); }
+    .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── TEAMS ── */
+    .team-row { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border); margin-bottom: 0.5rem; }
+    .team-row-name { font-size: 14px; }
+    .team-row-warning { color: #d9a441; font-size: 11px; margin-left: 0.75rem; }
+    .add-team-row { display: flex; gap: 0.75rem; margin-top: 1rem; }
+    .add-team-row input { flex: 1; }
+
+    /* ── SCHEDULE ── */
+    .sched-tbl { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 1.5rem; }
+    .sched-tbl th { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .sched-tbl td { padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .sched-tbl input[type="number"] { width: 55px; background: var(--black); border: 1px solid var(--border2); color: var(--white); padding: 0.3rem; }
+    .status-pill { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.2rem 0.5rem; }
+    .status-pill.scheduled { background: rgba(136,136,136,0.15); color: var(--muted); }
+    .status-pill.final { background: rgba(45,184,75,0.15); color: var(--green); }
+    .status-pill.postponed { background: rgba(224,85,85,0.15); color: var(--red); }
+
+    .csv-import-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; padding: 1rem; background: var(--surface2); border: 1px solid var(--border); }
+    .csv-file-label { background: var(--border2); color: var(--white); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.55rem 1rem; cursor: pointer; }
+    .csv-import-hint { color: var(--muted); font-size: 11px; }
+    .csv-import-errors { background: rgba(224,85,85,0.08); border: 1px solid var(--red); padding: 0.75rem 1rem; margin-top: 0.75rem; }
+    .csv-import-errors .cie-title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); margin-bottom: 0.4rem; }
+    .csv-import-errors ul { padding-left: 1.1rem; font-size: 12px; line-height: 1.6; }
+
+    /* ── STANDINGS ── */
+    .stg-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .stg-tbl th { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .stg-tbl td { padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--border); }
+    .stg-tbl tr:nth-child(even) td { background: var(--surface2); }
+    .stg-rank { font-weight: 700; color: #555; }
+    .diff-p { color: var(--green); }
+    .diff-n { color: var(--red); }
+
+    /* ── PLAYOFFS ── */
+    .round-block { margin-bottom: 2rem; }
+    .round-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.06em; color: var(--green); margin-bottom: 0.75rem; }
+    .matchup-card { background: var(--surface); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
+    .matchup-teams { display: flex; align-items: center; gap: 0.5rem; font-size: 14px; }
+    .matchup-teams select { background: var(--black); border: 1px solid var(--border2); color: var(--white); padding: 0.4rem; }
+    .matchup-teams input[type="number"] { width: 50px; background: var(--black); border: 1px solid var(--border2); color: var(--white); padding: 0.3rem; }
+    .matchup-winner { color: var(--green); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+
+    @media (max-width: 700px) {
+      .row-2, .row-3 { grid-template-columns: 1fr; }
+      .page-headline { font-size: 2.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="admin-nav">
+    <div class="nav-left">
+      <a href="index.html" aria-label="RHM home"><img src="RHM-Logo.png" alt="RHM Logo"></a>
+      <span class="nav-label">Admin Panel</span>
+    </div>
+    <div class="nav-right"><a href="admin-login.html" data-admin-logout>Logout</a></div>
+  </nav>
+
+  <main class="main">
+    <div class="page-label">Admin › League</div>
+    <h1 class="page-headline">League Manager</h1>
+
+    <!-- ═══════ LIST VIEW ═══════ -->
+    <div id="view-list">
+      <div class="list-toolbar">
+        <div id="league-count" class="csv-import-hint">Loading leagues…</div>
+        <button class="btn-primary" type="button" onclick="toggleNewLeagueForm()">+ New League</button>
+      </div>
+
+      <div class="new-league-panel" id="new-league-panel">
+        <div class="row-3">
+          <div class="field">
+            <label for="nl-name">League Name</label>
+            <input type="text" id="nl-name" placeholder="RHM Fall 2026 Basketball League">
+          </div>
+          <div class="field">
+            <label for="nl-season">Season</label>
+            <input type="text" id="nl-season" placeholder="Fall 2026">
+          </div>
+          <div class="field">
+            <label for="nl-start-date">Start Date</label>
+            <input type="date" id="nl-start-date">
+          </div>
+        </div>
+        <button class="btn-primary" type="button" onclick="createLeague()">Create League</button>
+      </div>
+
+      <div class="league-grid" id="league-grid"></div>
+    </div>
+
+    <!-- ═══════ EDITOR VIEW ═══════ -->
+    <div id="view-editor">
+      <div class="editor-topbar">
+        <div class="editor-topbar-left">
+          <a href="#" class="back-link" onclick="showListView(); return false;">← All Leagues</a>
+        </div>
+        <div class="editor-actions">
+          <span id="editor-status-badge"></span>
+          <button class="btn-outline" type="button" id="publish-btn" onclick="togglePublish()"></button>
+          <button class="btn-outline" type="button" onclick="archiveCurrentLeague()">Archive</button>
+          <button class="btn-danger" type="button" id="delete-btn" onclick="deleteCurrentLeague()">Delete</button>
+          <button class="btn-primary" type="button" onclick="saveCurrentLeague()">Save</button>
+        </div>
+      </div>
+
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="details" onclick="switchTab('details')">Details</button>
+        <button class="tab-btn" data-tab="teams" onclick="switchTab('teams')">Teams</button>
+        <button class="tab-btn" data-tab="schedule" onclick="switchTab('schedule')">Schedule</button>
+        <button class="tab-btn" data-tab="standings" onclick="switchTab('standings')">Standings</button>
+        <button class="tab-btn" data-tab="playoffs" onclick="switchTab('playoffs')">Playoffs</button>
+      </div>
+
+      <!-- DETAILS -->
+      <div class="tab-panel active" data-panel="details">
+        <div class="row-3">
+          <div class="field">
+            <label for="ed-name">League Name</label>
+            <input type="text" id="ed-name" oninput="updateLeagueField('name', this.value)">
+          </div>
+          <div class="field">
+            <label for="ed-season">Season</label>
+            <input type="text" id="ed-season" oninput="updateLeagueField('season', this.value)">
+          </div>
+          <div class="field">
+            <label for="ed-start-date">Start Date</label>
+            <input type="date" id="ed-start-date" oninput="updateLeagueField('startDate', this.value)">
+          </div>
+        </div>
+        <div class="field" style="max-width:300px;">
+          <label for="ed-sport">Sport</label>
+          <select id="ed-sport" onchange="updateLeagueField('sport', this.value)">
+            <option value="basketball">Basketball</option>
+            <option value="soccer">Soccer</option>
+            <option value="volleyball">Volleyball</option>
+            <option value="flag-football">Flag Football</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- TEAMS -->
+      <div class="tab-panel" data-panel="teams">
+        <div id="teams-list"></div>
+        <div class="add-team-row">
+          <input type="text" id="new-team-name" placeholder="Team name">
+          <button class="btn-primary" type="button" onclick="addTeam()">Add Team</button>
+        </div>
+      </div>
+
+      <!-- SCHEDULE -->
+      <div class="tab-panel" data-panel="schedule">
+        <div id="schedule-tab-body"></div>
+      </div>
+
+      <!-- STANDINGS -->
+      <div class="tab-panel" data-panel="standings">
+        <div id="standings-tab-body"></div>
+      </div>
+
+      <!-- PLAYOFFS -->
+      <div class="tab-panel" data-panel="playoffs">
+        <div id="playoffs-tab-body"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-config.js"></script>
+  <script src="assets/js/admin-auth.js"></script>
+  <script src="assets/js/schedule-import.js"></script>
+  <script src="assets/js/league-store.js"></script>
+  <script src="assets/js/tournament-standings.js"></script>
+  <script>
+    window.RHMAdminAuth.wireLogoutLinks();
+    window.RHMAdminAuth.requireAdmin();
+
+    var leagues = [];
+    var currentLeague = null;
+
+    function eh(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function toggleNewLeagueForm() {
+      document.getElementById('new-league-panel').classList.toggle('active');
+    }
+
+    async function createLeague() {
+      var name = document.getElementById('nl-name').value.trim();
+      if (!name) { alert('League name is required.'); return; }
+      var league = window.RHMLeagueStore.newLeague({
+        name: name,
+        season: document.getElementById('nl-season').value.trim(),
+        startDate: document.getElementById('nl-start-date').value
+      });
+      await window.RHMLeagueStore.saveLeague(league);
+      document.getElementById('nl-name').value = '';
+      document.getElementById('nl-season').value = '';
+      document.getElementById('nl-start-date').value = '';
+      document.getElementById('new-league-panel').classList.remove('active');
+      await loadAndRenderLeagues();
+      openLeague(league.id);
+    }
+
+    function leagueCardHTML(league) {
+      return '<div class="league-card" onclick="openLeague(\'' + eh(league.id) + '\')">' +
+        '<div class="league-card-name">' + eh(league.name) + '</div>' +
+        '<div class="league-card-meta">' + eh(league.season || league.sport) + (league.startDate ? ' · ' + eh(league.startDate) : '') + '</div>' +
+        '<span class="status-badge status-' + eh(league.status) + '">' + eh(league.status) + '</span>' +
+        '</div>';
+    }
+
+    function renderLeagueList() {
+      var grid = document.getElementById('league-grid');
+      var count = document.getElementById('league-count');
+      count.textContent = leagues.length + (leagues.length === 1 ? ' league' : ' leagues');
+      grid.innerHTML = leagues.length
+        ? leagues.map(leagueCardHTML).join('')
+        : '<div class="empty-note">No leagues yet. Create one to get started.</div>';
+    }
+
+    async function loadAndRenderLeagues() {
+      leagues = await window.RHMLeagueStore.loadLeagues();
+      renderLeagueList();
+    }
+
+    function showListView() {
+      currentLeague = null;
+      document.getElementById('view-editor').classList.remove('active');
+      document.getElementById('view-list').classList.remove('hidden');
+    }
+
+    function showEditorView() {
+      document.getElementById('view-list').classList.add('hidden');
+      document.getElementById('view-editor').classList.add('active');
+    }
+
+    async function openLeague(id) {
+      currentLeague = await window.RHMLeagueStore.loadLeague(id);
+      if (!currentLeague) { alert('League not found.'); return; }
+      showEditorView();
+      renderEditor();
+      switchTab('details');
+    }
+
+    function renderEditor() {
+      document.getElementById('ed-name').value = currentLeague.name;
+      document.getElementById('ed-season').value = currentLeague.season;
+      document.getElementById('ed-start-date').value = currentLeague.startDate;
+      document.getElementById('ed-sport').value = currentLeague.sport;
+
+      var badge = document.getElementById('editor-status-badge');
+      badge.className = 'status-badge status-' + currentLeague.status;
+      badge.textContent = currentLeague.status;
+
+      var publishBtn = document.getElementById('publish-btn');
+      publishBtn.textContent = currentLeague.status === 'published' ? 'Unpublish' : 'Publish';
+
+      document.getElementById('delete-btn').style.display = currentLeague.status === 'draft' ? '' : 'none';
+
+      renderTeams();
+    }
+
+    function updateLeagueField(key, value) {
+      currentLeague[key] = value;
+    }
+
+    async function saveCurrentLeague() {
+      currentLeague = await window.RHMLeagueStore.saveLeague(currentLeague);
+      await loadAndRenderLeagues();
+      alert('League saved.');
+    }
+
+    async function togglePublish() {
+      if (currentLeague.status === 'published') {
+        currentLeague = await window.RHMLeagueStore.unpublishLeague(currentLeague.id);
+      } else {
+        currentLeague = await window.RHMLeagueStore.publishLeague(currentLeague.id);
+      }
+      renderEditor();
+    }
+
+    async function archiveCurrentLeague() {
+      if (!confirm('Archive this league? It will no longer be editable from the list as active.')) return;
+      currentLeague = await window.RHMLeagueStore.archiveLeague(currentLeague.id);
+      renderEditor();
+    }
+
+    async function deleteCurrentLeague() {
+      if (!confirm('Permanently delete this draft league? This cannot be undone.')) return;
+      await window.RHMLeagueStore.deleteLeague(currentLeague.id);
+      showListView();
+      await loadAndRenderLeagues();
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(function (btn) {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+      });
+      document.querySelectorAll('.tab-panel').forEach(function (panel) {
+        panel.classList.toggle('active', panel.dataset.panel === tab);
+      });
+      if (tab === 'schedule' && window.renderScheduleTab) window.renderScheduleTab();
+      if (tab === 'standings' && window.renderStandingsTab) window.renderStandingsTab();
+      if (tab === 'playoffs' && window.renderPlayoffsTab) window.renderPlayoffsTab();
+    }
+
+    function teamUsage(teamId) {
+      var games = currentLeague.state.games.filter(function (g) {
+        return g.homeTeamId === teamId || g.awayTeamId === teamId;
+      });
+      var inPlayoffs = (currentLeague.state.playoffs.rounds || []).some(function (round) {
+        return round.matchups.some(function (m) { return m.homeTeamId === teamId || m.awayTeamId === teamId; });
+      });
+      return { games: games.length, inPlayoffs: inPlayoffs };
+    }
+
+    function renderTeams() {
+      var list = document.getElementById('teams-list');
+      var teams = currentLeague.state.teams;
+      if (!teams.length) {
+        list.innerHTML = '<div class="empty-note">No teams yet. Add your first team below.</div>';
+        return;
+      }
+      list.innerHTML = teams.map(function (t) {
+        var usage = teamUsage(t.id);
+        var warn = (usage.games || usage.inPlayoffs)
+          ? '<span class="team-row-warning">Used in ' + usage.games + ' game(s)' + (usage.inPlayoffs ? ' + playoffs' : '') + ' — remove those first</span>'
+          : '';
+        return '<div class="team-row"><span class="team-row-name">' + eh(t.name) + '</span>' + warn +
+          '<button class="btn-small" type="button" onclick="removeTeam(\'' + eh(t.id) + '\')">Remove</button></div>';
+      }).join('');
+    }
+
+    function addTeam() {
+      var input = document.getElementById('new-team-name');
+      var name = input.value.trim();
+      if (!name) return;
+      currentLeague.state.teams.push({ id: 'team-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), name: name });
+      input.value = '';
+      renderTeams();
+    }
+
+    function removeTeam(id) {
+      var usage = teamUsage(id);
+      if (usage.games || usage.inPlayoffs) {
+        alert('This team is used in games or playoffs. Remove those references first.');
+        return;
+      }
+      currentLeague.state.teams = currentLeague.state.teams.filter(function (t) { return t.id !== id; });
+      renderTeams();
+    }
+
+    (async function init() {
+      await loadAndRenderLeagues();
+    })();
+  </script>
+</body>
+</html>
