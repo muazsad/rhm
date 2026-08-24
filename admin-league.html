@@ -311,7 +311,13 @@
     }
 
     async function loadAndRenderLeagues() {
-      leagues = await window.RHMLeagueStore.loadLeagues();
+      try {
+        leagues = await window.RHMLeagueStore.loadLeagues();
+      } catch (error) {
+        document.getElementById('league-count').textContent = 'Error loading leagues';
+        document.getElementById('league-grid').innerHTML = '<div class="empty-note">Could not load leagues: ' + eh(error.message || 'Unknown error') + '</div>';
+        return;
+      }
       renderLeagueList();
     }
 

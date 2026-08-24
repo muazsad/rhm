@@ -1090,7 +1090,13 @@ are empty placeholder `<div>`s until Tasks 7-9.
     }
 
     async function loadAndRenderLeagues() {
-      leagues = await window.RHMLeagueStore.loadLeagues();
+      try {
+        leagues = await window.RHMLeagueStore.loadLeagues();
+      } catch (error) {
+        document.getElementById('league-count').textContent = 'Error loading leagues';
+        document.getElementById('league-grid').innerHTML = '<div class="empty-note">Could not load leagues: ' + eh(error.message || 'Unknown error') + '</div>';
+        return;
+      }
       renderLeagueList();
     }
 
@@ -1954,7 +1960,12 @@ git commit -m "Add Playoffs tab to admin-league.html: manual rounds and matchups
     }
 
     (async function init() {
-      allPublishedLeagues = await window.RHMLeagueStore.loadPublishedLeagues();
+      try {
+        allPublishedLeagues = await window.RHMLeagueStore.loadPublishedLeagues();
+      } catch (error) {
+        document.getElementById('league-main').innerHTML = '<div class="notice">Could not load the league right now. Please try again later.</div>';
+        return;
+      }
       if (!allPublishedLeagues.length) {
         document.getElementById('league-main').innerHTML = '<div class="notice">No league is currently active — check back soon.</div>';
         return;
