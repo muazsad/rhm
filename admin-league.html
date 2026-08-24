@@ -284,7 +284,12 @@
         season: document.getElementById('nl-season').value.trim(),
         startDate: document.getElementById('nl-start-date').value
       });
-      await window.RHMLeagueStore.saveLeague(league);
+      try {
+        await window.RHMLeagueStore.saveLeague(league);
+      } catch (error) {
+        alert('Could not create league: ' + (error.message || 'Unknown error'));
+        return;
+      }
       document.getElementById('nl-name').value = '';
       document.getElementById('nl-season').value = '';
       document.getElementById('nl-start-date').value = '';
@@ -333,7 +338,12 @@
     }
 
     async function openLeague(id) {
-      currentLeague = await window.RHMLeagueStore.loadLeague(id);
+      try {
+        currentLeague = await window.RHMLeagueStore.loadLeague(id);
+      } catch (error) {
+        alert('Could not load league: ' + (error.message || 'Unknown error'));
+        return;
+      }
       if (!currentLeague) { alert('League not found.'); return; }
       showEditorView();
       renderEditor();
@@ -363,29 +373,49 @@
     }
 
     async function saveCurrentLeague() {
-      currentLeague = await window.RHMLeagueStore.saveLeague(currentLeague);
+      try {
+        currentLeague = await window.RHMLeagueStore.saveLeague(currentLeague);
+      } catch (error) {
+        alert('Could not save league: ' + (error.message || 'Unknown error'));
+        return;
+      }
       await loadAndRenderLeagues();
       alert('League saved.');
     }
 
     async function togglePublish() {
-      if (currentLeague.status === 'published') {
-        currentLeague = await window.RHMLeagueStore.unpublishLeague(currentLeague.id);
-      } else {
-        currentLeague = await window.RHMLeagueStore.publishLeague(currentLeague.id);
+      try {
+        if (currentLeague.status === 'published') {
+          currentLeague = await window.RHMLeagueStore.unpublishLeague(currentLeague.id);
+        } else {
+          currentLeague = await window.RHMLeagueStore.publishLeague(currentLeague.id);
+        }
+      } catch (error) {
+        alert('Could not update publish status: ' + (error.message || 'Unknown error'));
+        return;
       }
       renderEditor();
     }
 
     async function archiveCurrentLeague() {
       if (!confirm('Archive this league? It will no longer be editable from the list as active.')) return;
-      currentLeague = await window.RHMLeagueStore.archiveLeague(currentLeague.id);
+      try {
+        currentLeague = await window.RHMLeagueStore.archiveLeague(currentLeague.id);
+      } catch (error) {
+        alert('Could not archive league: ' + (error.message || 'Unknown error'));
+        return;
+      }
       renderEditor();
     }
 
     async function deleteCurrentLeague() {
       if (!confirm('Permanently delete this draft league? This cannot be undone.')) return;
-      await window.RHMLeagueStore.deleteLeague(currentLeague.id);
+      try {
+        await window.RHMLeagueStore.deleteLeague(currentLeague.id);
+      } catch (error) {
+        alert('Could not delete league: ' + (error.message || 'Unknown error'));
+        return;
+      }
       showListView();
       await loadAndRenderLeagues();
     }
