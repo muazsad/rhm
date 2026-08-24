@@ -58,6 +58,20 @@ create table if not exists public.tournament_state (
   constraint tournament_state_singleton check (id = 'active')
 );
 
+create table if not exists public.leagues (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  season text,
+  sport text not null default 'basketball',
+  start_date date,
+  status text not null default 'draft' check (status in ('draft', 'published', 'archived')),
+  state jsonb not null default '{"teams":[],"games":[],"playoffs":{"enabled":false,"rounds":[]}}'::jsonb,
+  created_by uuid references auth.users(id) on delete set null,
+  updated_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -83,6 +97,11 @@ create trigger set_tournament_state_updated_at
 before update on public.tournament_state
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_leagues_updated_at on public.leagues;
+create trigger set_leagues_updated_at
+before update on public.leagues
+for each row execute function public.set_updated_at();
+
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -102,6 +121,7 @@ alter table public.events enable row level security;
 alter table public.registrations enable row level security;
 alter table public.album_purchases enable row level security;
 alter table public.tournament_state enable row level security;
+alter table public.leagues enable row level security;
 
 drop policy if exists "Admins can read admin profiles" on public.admin_profiles;
 create policy "Admins can read admin profiles"
@@ -172,6 +192,21 @@ using (is_active = true);
 drop policy if exists "Admins can manage tournament state" on public.tournament_state;
 create policy "Admins can manage tournament state"
 on public.tournament_state
+for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());
+
+drop policy if exists "Public can read published leagues" on public.leagues;
+create policy "Public can read published leagues"
+on public.leagues
+for select
+to anon, authenticated
+using (status = 'published');
+
+drop policy if exists "Admins can manage leagues" on public.leagues;
+create policy "Admins can manage leagues"
+on public.leagues
 for all
 to authenticated
 using (public.is_admin())

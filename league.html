@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>League — RHM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green: #2db84b;
+      --black: #0a0a0a;
+      --white: #f2f2ee;
+      --muted: #888;
+      --surface: #111;
+      --surface2: #161616;
+      --border: #1e1e1e;
+      --border2: #2a2a2a;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--black); color: var(--white); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+    .site-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2.5rem; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .header-left { display: flex; align-items: center; gap: 1rem; }
+    .header-left a { display: flex; align-items: center; }
+    .header-left img { height: 36px; }
+
+    .main { max-width: 1300px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+
+    .l-hero { margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem; }
+    .l-sport-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--green); margin-bottom: 0.5rem; }
+    .l-name { font-family: 'Bebas Neue', sans-serif; font-size: 3.25rem; letter-spacing: 0.06em; color: var(--white); line-height: 1; margin-bottom: 0.5rem; }
+    .l-meta { font-size: 13px; color: var(--muted); }
+    .season-select { background: var(--surface); border: 1px solid var(--border2); color: var(--white); font-size: 13px; padding: 0.5rem 0.75rem; }
+
+    .tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 2rem; overflow-x: auto; }
+    .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem; letter-spacing: 0.08em; padding: 0.85rem 1.4rem; cursor: pointer; }
+    .tab-btn:hover { color: var(--white); }
+    .tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+    .l-panel { display: none; }
+    .l-panel.active { display: block; }
+
+    .stg-tbl { width: 100%; border-collapse: collapse; font-size: 13px; max-width: 640px; }
+    .stg-tbl th { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .stg-tbl td { padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--border); }
+    .stg-tbl tr:nth-child(even) td { background: var(--surface2); }
+    .stg-rank { font-weight: 700; color: #555; }
+    .diff-p { color: var(--green); }
+    .diff-n { color: #e05555; }
+
+    .sched-date-group { margin-bottom: 1.75rem; }
+    .sched-date-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 0.08em; color: var(--green); margin-bottom: 0.6rem; }
+    .sched-wrap { overflow-x: auto; }
+    .sched-table { border-collapse: collapse; min-width: 500px; width: 100%; }
+    .sched-table th { background: var(--green); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.55rem 0.75rem; text-align: left; white-space: nowrap; border: 1px solid rgba(255,255,255,0.1); }
+    .sched-table td { padding: 0.55rem 0.75rem; border: 1px solid var(--border); font-size: 13px; }
+
+    .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+    .team-card { background: var(--surface); border: 1px solid var(--border); padding: 1.25rem; text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 1.15rem; letter-spacing: 0.05em; }
+
+    .round-block { margin-bottom: 2rem; }
+    .round-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 0.06em; color: var(--green); margin-bottom: 0.75rem; }
+    .matchup-card { background: var(--surface); border: 1px solid var(--border); padding: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; max-width: 480px; }
+    .matchup-side { flex: 1; font-size: 14px; }
+    .matchup-side.winner { color: var(--green); font-weight: 700; }
+    .matchup-score { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; }
+
+    .notice { color: var(--muted); font-size: 14px; padding: 2rem 0; }
+
+    @media (max-width: 600px) {
+      .l-name { font-size: 2.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-header">
+    <div class="header-left">
+      <a href="index.html" aria-label="RHM home"><img src="RHM-Logo.png" alt="RHM Logo"></a>
+    </div>
+    <div id="season-switcher-wrap"></div>
+  </nav>
+
+  <main class="main" id="league-main">
+    <div class="notice" id="loading-notice">Loading league…</div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-config.js"></script>
+  <script src="assets/js/league-store.js"></script>
+  <script src="assets/js/tournament-standings.js"></script>
+  <script>
+    var allPublishedLeagues = [];
+    var league = null;
+
+    function eh(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function teamName(id) {
+      var team = league.state.teams.filter(function (t) { return t.id === id; })[0];
+      return team ? team.name : 'TBD';
+    }
+
+    function resolveMatchupTeamId(ref) {
+      if (!ref) return null;
+      if (String(ref).indexOf('winner:') === 0) {
+        var matchupId = ref.slice('winner:'.length);
+        var found = null;
+        (league.state.playoffs.rounds || []).forEach(function (round) {
+          round.matchups.forEach(function (m) { if (m.id === matchupId) found = m; });
+        });
+        return found ? found.winnerTeamId : null;
+      }
+      return ref;
+    }
+
+    function formatDateLabel(dateStr) {
+      if (!dateStr) return '';
+      return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    }
+
+    function formatTime12(value) {
+      if (!value) return '';
+      return new Date('1970-01-01T' + value).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+
+    function renderStandings() {
+      var el = document.getElementById('panel-standings');
+      if (!league.state.teams.length) {
+        el.innerHTML = '<div class="notice">Standings will appear once teams are added.</div>';
+        return;
+      }
+      var config = window.RHMLeagueStore.leagueToStandingsConfig(league);
+      var result = window.RHMTournamentStandings.computeStandings(config)[0];
+      var rows = result ? result.rows : [];
+      el.innerHTML = '<table class="stg-tbl"><thead><tr>' +
+        '<th>Rank</th><th>Team</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>Diff</th>' +
+        '</tr></thead><tbody>' +
+        rows.map(function (row) {
+          var diffClass = row.diff > 0 ? 'diff-p' : (row.diff < 0 ? 'diff-n' : '');
+          return '<tr><td class="stg-rank">' + row.rank + '</td><td>' + eh(row.team) + '</td><td>' + row.wins + '</td><td>' + row.losses + '</td><td>' + row.pf + '</td><td>' + row.pa + '</td><td class="' + diffClass + '">' + (row.diff > 0 ? '+' : '') + row.diff + '</td></tr>';
+        }).join('') +
+        '</tbody></table>';
+    }
+
+    function renderSchedule() {
+      var el = document.getElementById('panel-schedule');
+      var games = league.state.games.slice().sort(function (a, b) {
+        return (a.date + ' ' + a.time).localeCompare(b.date + ' ' + b.time);
+      });
+      if (!games.length) {
+        el.innerHTML = '<div class="notice">No games scheduled yet.</div>';
+        return;
+      }
+      var byDate = {};
+      var dateOrder = [];
+      games.forEach(function (g) {
+        if (!byDate[g.date]) { byDate[g.date] = []; dateOrder.push(g.date); }
+        byDate[g.date].push(g);
+      });
+      el.innerHTML = dateOrder.map(function (date) {
+        var rows = byDate[date].map(function (g) {
+          var score = g.status === 'final' ? (g.homeScore + ' – ' + g.awayScore) : '—';
+          return '<tr><td>' + eh(formatTime12(g.time)) + '</td><td>' + eh(teamName(g.homeTeamId)) + ' vs ' + eh(teamName(g.awayTeamId)) + '</td><td>' + eh(g.location) + '</td><td>' + score + '</td></tr>';
+        }).join('');
+        return '<div class="sched-date-group"><div class="sched-date-label">' + eh(formatDateLabel(date)) + '</div>' +
+          '<div class="sched-wrap"><table class="sched-table"><thead><tr><th>Time</th><th>Matchup</th><th>Location</th><th>Score</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+      }).join('');
+    }
+
+    function renderTeams() {
+      var el = document.getElementById('panel-teams');
+      if (!league.state.teams.length) {
+        el.innerHTML = '<div class="notice">Teams will be listed here once added.</div>';
+        return;
+      }
+      el.innerHTML = '<div class="team-grid">' +
+        league.state.teams.map(function (t) { return '<div class="team-card">' + eh(t.name) + '</div>'; }).join('') +
+        '</div>';
+    }
+
+    function matchupSideHTML(ref, m) {
+      var resolved = resolveMatchupTeamId(ref);
+      var isWinner = resolved && m.winnerTeamId === resolved;
+      var label = resolved ? teamName(resolved) : 'TBD';
+      return '<span class="matchup-side' + (isWinner ? ' winner' : '') + '">' + eh(label) + '</span>';
+    }
+
+    function renderPlayoffs() {
+      var el = document.getElementById('panel-playoffs');
+      if (!el) return;
+      var playoffs = league.state.playoffs;
+      if (!playoffs.enabled || !playoffs.rounds.length) {
+        el.innerHTML = '<div class="notice">Playoffs have not started yet.</div>';
+        return;
+      }
+      el.innerHTML = playoffs.rounds.map(function (round) {
+        var cards = round.matchups.map(function (m) {
+          var score = m.status === 'final' ? '<span class="matchup-score">' + m.homeScore + ' – ' + m.awayScore + '</span>' : '<span class="matchup-score">vs</span>';
+          return '<div class="matchup-card">' + matchupSideHTML(m.homeTeamId, m) + score + matchupSideHTML(m.awayTeamId, m) + '</div>';
+        }).join('');
+        return '<div class="round-block"><div class="round-title">' + eh(round.name) + '</div>' + cards + '</div>';
+      }).join('');
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(function (btn) { btn.classList.toggle('active', btn.dataset.tab === tab); });
+      document.querySelectorAll('.l-panel').forEach(function (panel) { panel.classList.toggle('active', panel.id === 'panel-' + tab); });
+    }
+
+    function renderLeaguePage() {
+      var main = document.getElementById('league-main');
+      var showPlayoffsTab = league.state.playoffs.enabled;
+      main.innerHTML =
+        '<div class="l-hero">' +
+          '<div><div class="l-sport-tag">' + eh(league.sport) + (league.season ? ' · ' + eh(league.season) : '') + '</div>' +
+          '<div class="l-name">' + eh(league.name) + '</div>' +
+          '<div class="l-meta">' + (league.startDate ? 'Starts ' + eh(formatDateLabel(league.startDate)) : '') + '</div></div>' +
+        '</div>' +
+        '<div class="tab-nav">' +
+          '<button class="tab-btn active" data-tab="standings" onclick="switchTab(\'standings\')">Standings</button>' +
+          '<button class="tab-btn" data-tab="schedule" onclick="switchTab(\'schedule\')">Schedule</button>' +
+          '<button class="tab-btn" data-tab="teams" onclick="switchTab(\'teams\')">Teams</button>' +
+          (showPlayoffsTab ? '<button class="tab-btn" data-tab="playoffs" onclick="switchTab(\'playoffs\')">Playoffs</button>' : '') +
+        '</div>' +
+        '<div class="l-panel active" id="panel-standings"></div>' +
+        '<div class="l-panel" id="panel-schedule"></div>' +
+        '<div class="l-panel" id="panel-teams"></div>' +
+        (showPlayoffsTab ? '<div class="l-panel" id="panel-playoffs"></div>' : '');
+
+      renderStandings();
+      renderSchedule();
+      renderTeams();
+      if (showPlayoffsTab) renderPlayoffs();
+    }
+
+    function renderSeasonSwitcher() {
+      var wrap = document.getElementById('season-switcher-wrap');
+      if (allPublishedLeagues.length < 2) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = '<select class="season-select" id="season-switcher" onchange="onSeasonChange(this.value)">' +
+        allPublishedLeagues.map(function (l) {
+          return '<option value="' + eh(l.id) + '"' + (l.id === league.id ? ' selected' : '') + '>' + eh(l.name) + '</option>';
+        }).join('') + '</select>';
+    }
+
+    function onSeasonChange(id) {
+      league = allPublishedLeagues.filter(function (l) { return l.id === id; })[0];
+      renderLeaguePage();
+    }
+
+    (async function init() {
+      try {
+        allPublishedLeagues = await window.RHMLeagueStore.loadPublishedLeagues();
+      } catch (error) {
+        document.getElementById('league-main').innerHTML = '<div class="notice">Could not load the league right now. Please try again later.</div>';
+        return;
+      }
+      if (!allPublishedLeagues.length) {
+        document.getElementById('league-main').innerHTML = '<div class="notice">No league is currently active — check back soon.</div>';
+        return;
+      }
+      league = allPublishedLeagues[0];
+      renderSeasonSwitcher();
+      renderLeaguePage();
+    })();
+  </script>
+</body>
+</html>
