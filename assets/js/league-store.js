@@ -5,6 +5,17 @@
     return window.RHM && window.RHM.getSupabaseClient ? window.RHM.getSupabaseClient() : null;
   }
 
+  // The leagues.id column is Postgres uuid, so ids generated client-side
+  // (for a new league, or when Supabase isn't configured) must be valid UUIDs.
+  function generateUUID() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0;
+      var v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
   // ── localStorage layer ──────────────────────────────────────────────────
 
   function listLocalLeagues() {
@@ -66,7 +77,7 @@
 
   function newLeague(input) {
     return normalizeLeague({
-      id: 'league-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      id: generateUUID(),
       name: input.name,
       season: input.season || '',
       sport: input.sport || 'basketball',
