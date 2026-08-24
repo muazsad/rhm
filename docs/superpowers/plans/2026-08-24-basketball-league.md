@@ -230,6 +230,17 @@ Expected: FAIL — `assets/js/league-store.js` does not exist (`Cannot find modu
     return window.RHM && window.RHM.getSupabaseClient ? window.RHM.getSupabaseClient() : null;
   }
 
+  // The leagues.id column is Postgres uuid, so ids generated client-side
+  // (for a new league, or when Supabase isn't configured) must be valid UUIDs.
+  function generateUUID() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0;
+      var v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
   // ── localStorage layer ──────────────────────────────────────────────────
 
   function listLocalLeagues() {
@@ -291,7 +302,7 @@ Expected: FAIL — `assets/js/league-store.js` does not exist (`Cannot find modu
 
   function newLeague(input) {
     return normalizeLeague({
-      id: 'league-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      id: generateUUID(),
       name: input.name,
       season: input.season || '',
       sport: input.sport || 'basketball',
@@ -1063,7 +1074,12 @@ are empty placeholder `<div>`s until Tasks 7-9.
         season: document.getElementById('nl-season').value.trim(),
         startDate: document.getElementById('nl-start-date').value
       });
-      await window.RHMLeagueStore.saveLeague(league);
+      try {
+        await window.RHMLeagueStore.saveLeague(league);
+      } catch (error) {
+        alert('Could not create league: ' + (error.message || 'Unknown error'));
+        return;
+      }
       document.getElementById('nl-name').value = '';
       document.getElementById('nl-season').value = '';
       document.getElementById('nl-start-date').value = '';
@@ -1112,7 +1128,12 @@ are empty placeholder `<div>`s until Tasks 7-9.
     }
 
     async function openLeague(id) {
-      currentLeague = await window.RHMLeagueStore.loadLeague(id);
+      try {
+        currentLeague = await window.RHMLeagueStore.loadLeague(id);
+      } catch (error) {
+        alert('Could not load league: ' + (error.message || 'Unknown error'));
+        return;
+      }
       if (!currentLeague) { alert('League not found.'); return; }
       showEditorView();
       renderEditor();
@@ -1142,29 +1163,49 @@ are empty placeholder `<div>`s until Tasks 7-9.
     }
 
     async function saveCurrentLeague() {
-      currentLeague = await window.RHMLeagueStore.saveLeague(currentLeague);
+      try {
+        currentLeague = await window.RHMLeagueStore.saveLeague(currentLeague);
+      } catch (error) {
+        alert('Could not save league: ' + (error.message || 'Unknown error'));
+        return;
+      }
       await loadAndRenderLeagues();
       alert('League saved.');
     }
 
     async function togglePublish() {
-      if (currentLeague.status === 'published') {
-        currentLeague = await window.RHMLeagueStore.unpublishLeague(currentLeague.id);
-      } else {
-        currentLeague = await window.RHMLeagueStore.publishLeague(currentLeague.id);
+      try {
+        if (currentLeague.status === 'published') {
+          currentLeague = await window.RHMLeagueStore.unpublishLeague(currentLeague.id);
+        } else {
+          currentLeague = await window.RHMLeagueStore.publishLeague(currentLeague.id);
+        }
+      } catch (error) {
+        alert('Could not update publish status: ' + (error.message || 'Unknown error'));
+        return;
       }
       renderEditor();
     }
 
     async function archiveCurrentLeague() {
       if (!confirm('Archive this league? It will no longer be editable from the list as active.')) return;
-      currentLeague = await window.RHMLeagueStore.archiveLeague(currentLeague.id);
+      try {
+        currentLeague = await window.RHMLeagueStore.archiveLeague(currentLeague.id);
+      } catch (error) {
+        alert('Could not archive league: ' + (error.message || 'Unknown error'));
+        return;
+      }
       renderEditor();
     }
 
     async function deleteCurrentLeague() {
       if (!confirm('Permanently delete this draft league? This cannot be undone.')) return;
-      await window.RHMLeagueStore.deleteLeague(currentLeague.id);
+      try {
+        await window.RHMLeagueStore.deleteLeague(currentLeague.id);
+      } catch (error) {
+        alert('Could not delete league: ' + (error.message || 'Unknown error'));
+        return;
+      }
       showListView();
       await loadAndRenderLeagues();
     }
