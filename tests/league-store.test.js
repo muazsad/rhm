@@ -115,3 +115,34 @@ test('loadPublishedLeagues filters by status and sorts by startDate desc', async
   assert.equal(published[0].name, 'Newer');
   assert.equal(published[1].name, 'Older');
 });
+
+test('leagueToStandingsConfig builds one group with all team names', () => {
+  const sb = makeSandbox();
+  loadLeagueStore(sb);
+  const store = sb.window.RHMLeagueStore;
+  const league = store.newLeague({ name: 'Fall League', startDate: '2026-08-30' });
+  league.state.teams = [{ id: 't1', name: 'Team A' }, { id: 't2', name: 'Team B' }];
+  const config = store.leagueToStandingsConfig(league);
+  assert.equal(config.groups.length, 1);
+  assert.deepEqual(plain(config.groups[0].teams), ['Team A', 'Team B']);
+  assert.equal(config.rules.tiesAllowed, false);
+});
+
+test('leagueToStandingsConfig only includes final games as fixtures', () => {
+  const sb = makeSandbox();
+  loadLeagueStore(sb);
+  const store = sb.window.RHMLeagueStore;
+  const league = store.newLeague({ name: 'Fall League', startDate: '2026-08-30' });
+  league.state.teams = [{ id: 't1', name: 'Team A' }, { id: 't2', name: 'Team B' }];
+  league.state.games = [
+    { id: 'g1', homeTeamId: 't1', awayTeamId: 't2', homeScore: 50, awayScore: 40, status: 'final' },
+    { id: 'g2', homeTeamId: 't1', awayTeamId: 't2', homeScore: null, awayScore: null, status: 'scheduled' }
+  ];
+  const config = store.leagueToStandingsConfig(league);
+  assert.equal(config.fixtures.length, 1);
+  assert.equal(config.fixtures[0].teamA, 'Team A');
+  assert.equal(config.fixtures[0].teamB, 'Team B');
+  assert.equal(config.fixtures[0].scoreA, 50);
+  assert.equal(config.fixtures[0].scoreB, 40);
+  assert.equal(config.fixtures[0].groupId, 'league');
+});

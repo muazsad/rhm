@@ -456,7 +456,7 @@ test('leagueToStandingsConfig builds one group with all team names', () => {
   league.state.teams = [{ id: 't1', name: 'Team A' }, { id: 't2', name: 'Team B' }];
   const config = store.leagueToStandingsConfig(league);
   assert.equal(config.groups.length, 1);
-  assert.deepEqual(config.groups[0].teams, ['Team A', 'Team B']);
+  assert.deepEqual(plain(config.groups[0].teams), ['Team A', 'Team B']);
   assert.equal(config.rules.tiesAllowed, false);
 });
 

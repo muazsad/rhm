@@ -179,6 +179,34 @@
     if (response.error) throw response.error;
   }
 
+  // ── standings adapter ───────────────────────────────────────────────────
+
+  function leagueToStandingsConfig(league) {
+    var teams = league.state.teams || [];
+    var games = league.state.games || [];
+    var byId = {};
+    teams.forEach(function (t) { byId[t.id] = t.name; });
+
+    var fixtures = games
+      .filter(function (g) { return g.status === 'final'; })
+      .map(function (g) {
+        return {
+          phase: 'group',
+          groupId: 'league',
+          teamA: byId[g.homeTeamId],
+          teamB: byId[g.awayTeamId],
+          scoreA: g.homeScore,
+          scoreB: g.awayScore
+        };
+      });
+
+    return {
+      groups: [{ id: 'league', name: league.name, teams: teams.map(function (t) { return t.name; }) }],
+      fixtures: fixtures,
+      rules: { winPoints: 1, drawPoints: 0, lossPoints: 0, tiesAllowed: false }
+    };
+  }
+
   window.RHMLeagueStore = {
     emptyState: emptyState,
     normalizeLeague: normalizeLeague,
@@ -193,6 +221,7 @@
     publishLeague: publishLeague,
     unpublishLeague: unpublishLeague,
     archiveLeague: archiveLeague,
-    deleteLeague: deleteLeague
+    deleteLeague: deleteLeague,
+    leagueToStandingsConfig: leagueToStandingsConfig
   };
 })(window);
