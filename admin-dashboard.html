@@ -105,7 +105,7 @@
     /* ── CARDS ── */
     .cards {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 1.5rem;
     }
 
@@ -218,6 +218,15 @@
         <div class="card-title">Tournament Bracket</div>
         <div class="card-desc">Build and manage single-elimination brackets. Set team names, generate rounds, and track match progression through the tournament.</div>
         <a href="admin-bracket.html" class="card-btn">Go to Bracket</a>
+      </div>
+
+      <div class="dash-card">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a12 12 0 0 1 0 18M12 3a12 12 0 0 0 0 18M3 12h18"/></svg>
+        </div>
+        <div class="card-title">League Manager</div>
+        <div class="card-desc">Create and manage league teams, schedules, standings, and playoffs across seasons.</div>
+        <a href="admin-league.html" class="card-btn">Go to League</a>
       </div>
 
     </div>
