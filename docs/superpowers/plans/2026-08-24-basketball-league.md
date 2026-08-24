@@ -133,14 +133,21 @@ function loadLeagueStore(sb) {
   return loadScript('assets/js/league-store.js', sb);
 }
 
+// vm.runInNewContext evaluates array/object literals in a separate realm, so
+// they fail node:assert/strict's deepEqual (which checks prototype identity)
+// against host-realm literals. Round-tripping through host JSON normalizes them.
+function plain(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 test('newLeague creates a draft league with empty state', () => {
   const sb = makeSandbox();
   loadLeagueStore(sb);
   const league = sb.window.RHMLeagueStore.newLeague({ name: 'Fall 2026', season: 'Fall 2026', startDate: '2026-08-30' });
   assert.equal(league.name, 'Fall 2026');
   assert.equal(league.status, 'draft');
-  assert.deepEqual(league.state.teams, []);
-  assert.deepEqual(league.state.games, []);
+  assert.deepEqual(plain(league.state.teams), []);
+  assert.deepEqual(plain(league.state.games), []);
   assert.equal(league.state.playoffs.enabled, false);
 });
 
@@ -284,7 +291,7 @@ Expected: FAIL — `assets/js/league-store.js` does not exist (`Cannot find modu
 
   function newLeague(input) {
     return normalizeLeague({
-      id: 'league-' + Date.now(),
+      id: 'league-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
       name: input.name,
       season: input.season || '',
       sport: input.sport || 'basketball',
