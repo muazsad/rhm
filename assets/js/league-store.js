@@ -207,6 +207,82 @@
     };
   }
 
+  // ── CSV schedule import ─────────────────────────────────────────────────
+
+  function findColumn(header, keywords) {
+    for (var k = 0; k < keywords.length; k++) {
+      for (var i = 0; i < header.length; i++) {
+        if (header[i].indexOf(keywords[k]) >= 0) return i;
+      }
+    }
+    return -1;
+  }
+
+  function parseLeagueScheduleCSV(text, teams) {
+    var rows = window.RHMScheduleImport.parseCSV(text);
+    var games = [];
+    var errors = [];
+
+    if (rows.length < 2) {
+      return { games: games, newTeamNames: [], errors: errors };
+    }
+
+    var header = rows[0].map(function (c) { return String(c || '').trim().toLowerCase(); });
+    var colDate = findColumn(header, ['date']);
+    var colTime = findColumn(header, ['time']);
+    var colLocation = findColumn(header, ['location', 'court', 'field']);
+    var colHome = findColumn(header, ['home']);
+    var colAway = findColumn(header, ['away']);
+    var colHomeScore = findColumn(header, ['home score']);
+    var colAwayScore = findColumn(header, ['away score']);
+
+    var knownNames = (teams || []).map(function (t) { return t.name; });
+    var newTeamNames = [];
+
+    rows.slice(1).forEach(function (row, ri) {
+      var rowNumber = ri + 2;
+      var date = colDate >= 0 ? String(row[colDate] || '').trim() : '';
+      var time = colTime >= 0 ? String(row[colTime] || '').trim() : '';
+      var location = colLocation >= 0 ? String(row[colLocation] || '').trim() : '';
+      var home = colHome >= 0 ? String(row[colHome] || '').trim() : '';
+      var away = colAway >= 0 ? String(row[colAway] || '').trim() : '';
+      var homeScoreRaw = colHomeScore >= 0 ? String(row[colHomeScore] || '').trim() : '';
+      var awayScoreRaw = colAwayScore >= 0 ? String(row[colAwayScore] || '').trim() : '';
+
+      if (!date) {
+        errors.push({ rowNumber: rowNumber, message: 'Row is missing a date' });
+        return;
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        errors.push({ rowNumber: rowNumber, message: 'Date "' + date + '" is not in YYYY-MM-DD format' });
+        return;
+      }
+      if (!home || !away) {
+        errors.push({ rowNumber: rowNumber, message: 'Row is missing a home or away team name' });
+        return;
+      }
+
+      [home, away].forEach(function (name) {
+        var known = knownNames.some(function (n) { return n.toLowerCase() === name.toLowerCase(); });
+        if (!known && newTeamNames.indexOf(name) < 0) newTeamNames.push(name);
+      });
+
+      var hasScores = homeScoreRaw !== '' && awayScoreRaw !== '';
+      games.push({
+        date: date,
+        time: time,
+        location: location,
+        homeTeamName: home,
+        awayTeamName: away,
+        homeScore: hasScores ? Number(homeScoreRaw) : null,
+        awayScore: hasScores ? Number(awayScoreRaw) : null,
+        status: hasScores ? 'final' : 'scheduled'
+      });
+    });
+
+    return { games: games, newTeamNames: newTeamNames, errors: errors };
+  }
+
   window.RHMLeagueStore = {
     emptyState: emptyState,
     normalizeLeague: normalizeLeague,
@@ -222,6 +298,7 @@
     unpublishLeague: unpublishLeague,
     archiveLeague: archiveLeague,
     deleteLeague: deleteLeague,
-    leagueToStandingsConfig: leagueToStandingsConfig
+    leagueToStandingsConfig: leagueToStandingsConfig,
+    parseLeagueScheduleCSV: parseLeagueScheduleCSV
   };
 })(window);

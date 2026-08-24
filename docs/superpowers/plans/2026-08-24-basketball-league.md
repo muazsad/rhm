@@ -617,7 +617,7 @@ test('parseLeagueScheduleCSV reports team names not in the existing roster', () 
   const csv = 'Date,Time,Location,Home Team,Away Team\n' +
     '2026-08-30,14:00,Court 1,Team A,Team B\n';
   const result = store.parseLeagueScheduleCSV(csv, [{ id: 't1', name: 'Team A' }]);
-  assert.deepEqual(result.newTeamNames, ['Team B']);
+  assert.deepEqual(plain(result.newTeamNames), ['Team B']);
 });
 ```
 

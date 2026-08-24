@@ -35,6 +35,13 @@ function loadLeagueStore(sb) {
   return loadScript('assets/js/league-store.js', sb);
 }
 
+function loadLeagueStoreWithScheduleImport(sb) {
+  sb.window.RHM = null;
+  loadScript('assets/js/schedule-import.js', sb);
+  loadScript('assets/js/league-store.js', sb);
+  return sb;
+}
+
 // vm.runInNewContext evaluates array/object literals in a separate realm, so
 // they fail node:assert/strict's deepEqual (which checks prototype identity)
 // against host-realm literals. Round-tripping through host JSON normalizes them.
@@ -145,4 +152,67 @@ test('leagueToStandingsConfig only includes final games as fixtures', () => {
   assert.equal(config.fixtures[0].scoreA, 50);
   assert.equal(config.fixtures[0].scoreB, 40);
   assert.equal(config.fixtures[0].groupId, 'league');
+});
+
+test('parseLeagueScheduleCSV parses valid rows into games', () => {
+  const sb = makeSandbox();
+  loadLeagueStoreWithScheduleImport(sb);
+  const store = sb.window.RHMLeagueStore;
+  const csv = 'Date,Time,Location,Home Team,Away Team\n' +
+    '2026-08-30,14:00,Court 1,Team A,Team B\n' +
+    '2026-09-06,15:30,Court 2,Team C,Team D\n';
+  const result = store.parseLeagueScheduleCSV(csv, []);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.games.length, 2);
+  assert.equal(result.games[0].date, '2026-08-30');
+  assert.equal(result.games[0].time, '14:00');
+  assert.equal(result.games[0].homeTeamName, 'Team A');
+  assert.equal(result.games[0].awayTeamName, 'Team B');
+  assert.equal(result.games[0].status, 'scheduled');
+  assert.equal(result.games[0].homeScore, null);
+});
+
+test('parseLeagueScheduleCSV marks games with both scores as final', () => {
+  const sb = makeSandbox();
+  loadLeagueStoreWithScheduleImport(sb);
+  const store = sb.window.RHMLeagueStore;
+  const csv = 'Date,Time,Location,Home Team,Away Team,Home Score,Away Score\n' +
+    '2026-08-30,14:00,Court 1,Team A,Team B,50,40\n';
+  const result = store.parseLeagueScheduleCSV(csv, []);
+  assert.equal(result.games[0].status, 'final');
+  assert.equal(result.games[0].homeScore, 50);
+  assert.equal(result.games[0].awayScore, 40);
+});
+
+test('parseLeagueScheduleCSV flags a row missing a date', () => {
+  const sb = makeSandbox();
+  loadLeagueStoreWithScheduleImport(sb);
+  const store = sb.window.RHMLeagueStore;
+  const csv = 'Date,Time,Location,Home Team,Away Team\n' +
+    ',14:00,Court 1,Team A,Team B\n';
+  const result = store.parseLeagueScheduleCSV(csv, []);
+  assert.equal(result.games.length, 0);
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0].message, /missing a date/);
+});
+
+test('parseLeagueScheduleCSV flags a badly formatted date', () => {
+  const sb = makeSandbox();
+  loadLeagueStoreWithScheduleImport(sb);
+  const store = sb.window.RHMLeagueStore;
+  const csv = 'Date,Time,Location,Home Team,Away Team\n' +
+    '08/30/2026,14:00,Court 1,Team A,Team B\n';
+  const result = store.parseLeagueScheduleCSV(csv, []);
+  assert.equal(result.errors.length, 1);
+  assert.match(result.errors[0].message, /YYYY-MM-DD/);
+});
+
+test('parseLeagueScheduleCSV reports team names not in the existing roster', () => {
+  const sb = makeSandbox();
+  loadLeagueStoreWithScheduleImport(sb);
+  const store = sb.window.RHMLeagueStore;
+  const csv = 'Date,Time,Location,Home Team,Away Team\n' +
+    '2026-08-30,14:00,Court 1,Team A,Team B\n';
+  const result = store.parseLeagueScheduleCSV(csv, [{ id: 't1', name: 'Team A' }]);
+  assert.deepEqual(plain(result.newTeamNames), ['Team B']);
 });
