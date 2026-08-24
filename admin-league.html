@@ -649,6 +649,163 @@
     }
     window.renderStandingsTab = renderStandingsTab;
 
+    function allPriorWinners() {
+      var options = [];
+      (currentLeague.state.playoffs.rounds || []).forEach(function (round) {
+        round.matchups.forEach(function (m) {
+          if (m.winnerTeamId) {
+            options.push({ value: 'winner:' + m.id, label: 'Winner of ' + round.name + ' — ' + m.label });
+          }
+        });
+      });
+      return options;
+    }
+
+    function resolveMatchupTeamId(ref) {
+      if (!ref) return null;
+      if (ref.indexOf('winner:') === 0) {
+        var matchupId = ref.slice('winner:'.length);
+        var found = null;
+        (currentLeague.state.playoffs.rounds || []).forEach(function (round) {
+          round.matchups.forEach(function (m) { if (m.id === matchupId) found = m; });
+        });
+        return found ? found.winnerTeamId : null;
+      }
+      return ref;
+    }
+
+    function matchupTeamOptionsHTML(selectedRef) {
+      var options = ['<option value="">— Select —</option>'];
+      currentLeague.state.teams.forEach(function (t) {
+        options.push('<option value="' + eh(t.id) + '"' + (t.id === selectedRef ? ' selected' : '') + '>' + eh(t.name) + '</option>');
+      });
+      allPriorWinners().forEach(function (opt) {
+        options.push('<option value="' + eh(opt.value) + '"' + (opt.value === selectedRef ? ' selected' : '') + '>' + eh(opt.label) + '</option>');
+      });
+      return options.join('');
+    }
+
+    function togglePlayoffsEnabled() {
+      currentLeague.state.playoffs.enabled = !currentLeague.state.playoffs.enabled;
+      renderPlayoffsTab();
+    }
+
+    function findRound(roundId) {
+      return currentLeague.state.playoffs.rounds.filter(function (r) { return r.id === roundId; })[0];
+    }
+
+    function addRound() {
+      var input = document.getElementById('new-round-name');
+      var name = input.value.trim();
+      if (!name) { alert('Round name is required.'); return; }
+      currentLeague.state.playoffs.rounds.push({
+        id: 'round-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        name: name,
+        matchups: []
+      });
+      input.value = '';
+      renderPlayoffsTab();
+    }
+
+    function deleteRound(roundId) {
+      if (!confirm('Delete this round and all its matchups?')) return;
+      currentLeague.state.playoffs.rounds = currentLeague.state.playoffs.rounds.filter(function (r) { return r.id !== roundId; });
+      renderPlayoffsTab();
+    }
+
+    function addMatchup(roundId) {
+      var round = findRound(roundId);
+      if (!round) return;
+      round.matchups.push({
+        id: 'matchup-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        label: 'Matchup ' + (round.matchups.length + 1),
+        homeTeamId: null, awayTeamId: null,
+        homeScore: null, awayScore: null,
+        winnerTeamId: null, status: 'scheduled'
+      });
+      renderPlayoffsTab();
+    }
+
+    function updateMatchupTeam(roundId, matchupId, side, value) {
+      var round = findRound(roundId);
+      var matchup = round.matchups.filter(function (m) { return m.id === matchupId; })[0];
+      if (!matchup) return;
+      matchup[side] = value || null;
+    }
+
+    function updateMatchupScore(roundId, matchupId, side, value) {
+      var round = findRound(roundId);
+      var matchup = round.matchups.filter(function (m) { return m.id === matchupId; })[0];
+      if (!matchup) return;
+      matchup[side] = value === '' ? null : Number(value);
+    }
+
+    function declareWinner(roundId, matchupId) {
+      var round = findRound(roundId);
+      var matchup = round.matchups.filter(function (m) { return m.id === matchupId; })[0];
+      if (!matchup) return;
+      var homeId = resolveMatchupTeamId(matchup.homeTeamId);
+      var awayId = resolveMatchupTeamId(matchup.awayTeamId);
+      if (!homeId || !awayId) { alert('Both teams must be set before declaring a winner.'); return; }
+      if (matchup.homeScore == null || matchup.awayScore == null) { alert('Enter both scores before declaring a winner.'); return; }
+      if (matchup.homeScore === matchup.awayScore) { alert('Scores are tied — playoff games need a winner.'); return; }
+      matchup.winnerTeamId = matchup.homeScore > matchup.awayScore ? homeId : awayId;
+      matchup.status = 'final';
+      renderPlayoffsTab();
+    }
+
+    function deleteMatchup(roundId, matchupId) {
+      var round = findRound(roundId);
+      round.matchups = round.matchups.filter(function (m) { return m.id !== matchupId; });
+      renderPlayoffsTab();
+    }
+
+    function matchupCardHTML(round, m) {
+      var winnerHTML = m.winnerTeamId
+        ? '<span class="matchup-winner">Winner: ' + eh(teamName(m.winnerTeamId)) + '</span>'
+        : '<button class="btn-small" type="button" onclick="declareWinner(\'' + eh(round.id) + '\', \'' + eh(m.id) + '\')">Declare Winner</button>';
+      return '<div class="matchup-card">' +
+        '<div class="matchup-teams">' +
+          '<select onchange="updateMatchupTeam(\'' + eh(round.id) + '\', \'' + eh(m.id) + '\', \'homeTeamId\', this.value)">' + matchupTeamOptionsHTML(m.homeTeamId) + '</select>' +
+          '<input type="number" value="' + (m.homeScore == null ? '' : m.homeScore) + '" onchange="updateMatchupScore(\'' + eh(round.id) + '\', \'' + eh(m.id) + '\', \'homeScore\', this.value)">' +
+          '<span>vs</span>' +
+          '<input type="number" value="' + (m.awayScore == null ? '' : m.awayScore) + '" onchange="updateMatchupScore(\'' + eh(round.id) + '\', \'' + eh(m.id) + '\', \'awayScore\', this.value)">' +
+          '<select onchange="updateMatchupTeam(\'' + eh(round.id) + '\', \'' + eh(m.id) + '\', \'awayTeamId\', this.value)">' + matchupTeamOptionsHTML(m.awayTeamId) + '</select>' +
+        '</div>' +
+        winnerHTML +
+        '<button class="btn-small" type="button" onclick="deleteMatchup(\'' + eh(round.id) + '\', \'' + eh(m.id) + '\')">Delete</button>' +
+        '</div>';
+    }
+
+    function roundBlockHTML(round) {
+      return '<div class="round-block">' +
+        '<div class="round-title">' + eh(round.name) + ' <button class="btn-small" type="button" onclick="deleteRound(\'' + eh(round.id) + '\')">Delete Round</button></div>' +
+        round.matchups.map(function (m) { return matchupCardHTML(round, m); }).join('') +
+        '<button class="btn-outline" type="button" onclick="addMatchup(\'' + eh(round.id) + '\')">+ Add Matchup</button>' +
+        '</div>';
+    }
+
+    function renderPlayoffsTab() {
+      var body = document.getElementById('playoffs-tab-body');
+      var playoffs = currentLeague.state.playoffs;
+      var toggleLabel = playoffs.enabled ? 'Disable Playoffs' : 'Enable Playoffs';
+      var html = '<button class="btn-outline" type="button" onclick="togglePlayoffsEnabled()">' + toggleLabel + '</button>';
+      if (!playoffs.enabled) {
+        html += '<div class="empty-note">Playoffs are disabled. They will not appear on the public league page.</div>';
+        body.innerHTML = html;
+        return;
+      }
+      html += '<div class="add-team-row" style="margin:1rem 0;">' +
+        '<input type="text" id="new-round-name" placeholder="Round name, e.g. Semifinals">' +
+        '<button class="btn-primary" type="button" onclick="addRound()">+ Add Round</button>' +
+        '</div>';
+      html += playoffs.rounds.length
+        ? playoffs.rounds.map(roundBlockHTML).join('')
+        : '<div class="empty-note">No rounds yet.</div>';
+      body.innerHTML = html;
+    }
+    window.renderPlayoffsTab = renderPlayoffsTab;
+
     (async function init() {
       await loadAndRenderLeagues();
     })();
