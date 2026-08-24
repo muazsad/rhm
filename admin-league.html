@@ -442,6 +442,184 @@
       renderTeams();
     }
 
+    function sortedGames() {
+      return currentLeague.state.games.slice().sort(function (a, b) {
+        return (a.date + ' ' + a.time).localeCompare(b.date + ' ' + b.time);
+      });
+    }
+
+    function teamName(id) {
+      var team = currentLeague.state.teams.filter(function (t) { return t.id === id; })[0];
+      return team ? team.name : '—';
+    }
+
+    function teamOptionsHTML(selectedId) {
+      return currentLeague.state.teams.map(function (t) {
+        return '<option value="' + eh(t.id) + '"' + (t.id === selectedId ? ' selected' : '') + '>' + eh(t.name) + '</option>';
+      }).join('');
+    }
+
+    function gameRowHTML(g) {
+      var scoreCell = '<input type="number" value="' + (g.homeScore == null ? '' : g.homeScore) + '" onchange="updateGameScore(\'' + eh(g.id) + '\', \'homeScore\', this.value)"> – ' +
+        '<input type="number" value="' + (g.awayScore == null ? '' : g.awayScore) + '" onchange="updateGameScore(\'' + eh(g.id) + '\', \'awayScore\', this.value)">';
+      return '<tr>' +
+        '<td>' + eh(g.date) + '</td>' +
+        '<td>' + eh(g.time) + '</td>' +
+        '<td>' + eh(g.location) + '</td>' +
+        '<td>' + eh(teamName(g.homeTeamId)) + '</td>' +
+        '<td>' + eh(teamName(g.awayTeamId)) + '</td>' +
+        '<td>' + scoreCell + '</td>' +
+        '<td><span class="status-pill ' + eh(g.status) + '">' + eh(g.status) + '</span></td>' +
+        '<td><button class="btn-small" type="button" onclick="markGameFinal(\'' + eh(g.id) + '\')">Mark Final</button> ' +
+        '<button class="btn-small" type="button" onclick="deleteGame(\'' + eh(g.id) + '\')">Delete</button></td>' +
+        '</tr>';
+    }
+
+    function addGameFromForm() {
+      var date = document.getElementById('ng-date').value;
+      var time = document.getElementById('ng-time').value;
+      var location = document.getElementById('ng-location').value.trim();
+      var home = document.getElementById('ng-home').value;
+      var away = document.getElementById('ng-away').value;
+      if (!date) { alert('Date is required.'); return; }
+      if (!home || !away || home === away) { alert('Pick two different teams.'); return; }
+      currentLeague.state.games.push({
+        id: 'game-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        date: date, time: time, location: location,
+        homeTeamId: home, awayTeamId: away,
+        homeScore: null, awayScore: null, status: 'scheduled'
+      });
+      document.getElementById('ng-location').value = '';
+      renderScheduleTab();
+    }
+
+    function updateGameScore(id, field, value) {
+      var game = currentLeague.state.games.filter(function (g) { return g.id === id; })[0];
+      if (!game) return;
+      game[field] = value === '' ? null : Number(value);
+    }
+
+    function markGameFinal(id) {
+      var game = currentLeague.state.games.filter(function (g) { return g.id === id; })[0];
+      if (!game) return;
+      if (game.homeScore == null || game.awayScore == null) {
+        alert('Enter both scores before marking this game final.');
+        return;
+      }
+      game.status = 'final';
+      renderScheduleTab();
+    }
+
+    function deleteGame(id) {
+      if (!confirm('Delete this game?')) return;
+      currentLeague.state.games = currentLeague.state.games.filter(function (g) { return g.id !== id; });
+      renderScheduleTab();
+    }
+
+    var pendingCsvImport = null;
+
+    function downloadScheduleTemplate() {
+      var csv = 'Date,Time,Location,Home Team,Away Team,Home Score,Away Score\n' +
+        '2026-08-30,14:00,Court 1,Team A,Team B,,\n' +
+        '2026-09-06,15:30,Court 2,Team C,Team D,,\n';
+      var blob = new Blob([csv], { type: 'text/csv' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'league-schedule-template.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function handleScheduleCsvSelect(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        pendingCsvImport = window.RHMLeagueStore.parseLeagueScheduleCSV(String(reader.result), currentLeague.state.teams);
+        renderCsvImportPreview();
+      };
+      reader.readAsText(file);
+    }
+
+    function renderCsvImportPreview() {
+      var el = document.getElementById('csv-import-preview');
+      if (!el) return;
+      if (!pendingCsvImport) { el.innerHTML = ''; return; }
+      var r = pendingCsvImport;
+      var errorsHTML = r.errors.length
+        ? '<div class="csv-import-errors"><div class="cie-title">' + r.errors.length + ' Problem' + (r.errors.length === 1 ? '' : 's') + '</div><ul>' +
+          r.errors.map(function (e) { return '<li>Row ' + e.rowNumber + ': ' + eh(e.message) + '</li>'; }).join('') + '</ul></div>'
+        : '';
+      var newTeamsNote = r.newTeamNames.length
+        ? '<div class="csv-import-hint">' + r.newTeamNames.length + ' new team(s) will be created: ' + eh(r.newTeamNames.join(', ')) + '</div>'
+        : '';
+      el.innerHTML =
+        '<div class="csv-import-hint">' + r.games.length + ' game(s) ready to import.</div>' +
+        newTeamsNote + errorsHTML +
+        (r.games.length ? '<button class="btn-primary" type="button" style="margin-top:0.75rem;" onclick="confirmScheduleCsvImport()">Confirm Import</button>' : '');
+    }
+
+    function confirmScheduleCsvImport() {
+      if (!pendingCsvImport) return;
+      var byLowerName = {};
+      currentLeague.state.teams.forEach(function (t) { byLowerName[t.name.toLowerCase()] = t.id; });
+      pendingCsvImport.newTeamNames.forEach(function (name) {
+        var id = 'team-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+        currentLeague.state.teams.push({ id: id, name: name });
+        byLowerName[name.toLowerCase()] = id;
+      });
+      pendingCsvImport.games.forEach(function (g) {
+        currentLeague.state.games.push({
+          id: 'game-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+          date: g.date, time: g.time, location: g.location,
+          homeTeamId: byLowerName[g.homeTeamName.toLowerCase()],
+          awayTeamId: byLowerName[g.awayTeamName.toLowerCase()],
+          homeScore: g.homeScore, awayScore: g.awayScore, status: g.status
+        });
+      });
+      pendingCsvImport = null;
+      var fileInput = document.getElementById('csv-file-input');
+      if (fileInput) fileInput.value = '';
+      renderScheduleTab();
+    }
+
+    function renderScheduleTab() {
+      var body = document.getElementById('schedule-tab-body');
+      var games = sortedGames();
+      var rowsHTML = games.length
+        ? games.map(gameRowHTML).join('')
+        : '<tr><td colspan="8" class="empty-note">No games yet.</td></tr>';
+
+      var addFormHTML = currentLeague.state.teams.length < 2
+        ? '<div class="empty-note">Add at least two teams before scheduling games.</div>'
+        : '<div class="row-3">' +
+            '<div class="field"><label for="ng-date">Date</label><input type="date" id="ng-date"></div>' +
+            '<div class="field"><label for="ng-time">Time</label><input type="time" id="ng-time"></div>' +
+            '<div class="field"><label for="ng-location">Location</label><input type="text" id="ng-location" placeholder="Court 1"></div>' +
+          '</div>' +
+          '<div class="row-2">' +
+            '<div class="field"><label for="ng-home">Home Team</label><select id="ng-home">' + teamOptionsHTML() + '</select></div>' +
+            '<div class="field"><label for="ng-away">Away Team</label><select id="ng-away">' + teamOptionsHTML() + '</select></div>' +
+          '</div>' +
+          '<button class="btn-primary" type="button" onclick="addGameFromForm()">+ Add Game</button>';
+
+      body.innerHTML = addFormHTML +
+        '<div class="csv-import-row">' +
+          '<label class="csv-file-label" for="csv-file-input">Choose CSV File</label>' +
+          '<input type="file" id="csv-file-input" accept=".csv" style="display:none;" onchange="handleScheduleCsvSelect(event)">' +
+          '<button class="btn-small" type="button" onclick="downloadScheduleTemplate()">Download Template</button>' +
+          '<span class="csv-import-hint">Columns: Date, Time, Location, Home Team, Away Team, Home Score, Away Score (scores optional)</span>' +
+          '<div id="csv-import-preview" style="flex-basis:100%;"></div>' +
+        '</div>' +
+        '<table class="sched-tbl"><thead><tr>' +
+          '<th>Date</th><th>Time</th><th>Location</th><th>Home</th><th>Away</th><th>Score</th><th>Status</th><th></th>' +
+        '</tr></thead><tbody>' + rowsHTML + '</tbody></table>';
+    }
+    window.renderScheduleTab = renderScheduleTab;
+
     (async function init() {
       await loadAndRenderLeagues();
     })();
