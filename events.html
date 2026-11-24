@@ -556,28 +556,28 @@
     <div class="event-card reveal">
       <div class="event-date-block">
         <div>
-          <div class="event-day">23</div>
-          <div class="event-month">May</div>
+          <div class="event-day">26</div>
+          <div class="event-month">Dec</div>
         </div>
       </div>
       <div class="event-details">
         <div>
           <div class="event-badge">Registration Open</div>
-          <h2 class="event-title">RHM 3V3 TOURNAMENT</h2>
+          <h2 class="event-title">2026 RHM SOCCER TOURNAMENT</h2>
           <div class="event-meta">
             <span class="event-meta-item">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
                 <path d="M8 2a4 4 0 0 1 4 4c0 3-4 8-4 8S4 9 4 6a4 4 0 0 1 4-4z"/>
                 <circle cx="8" cy="6" r="1.5"/>
               </svg>
-              Windsor, CT
+              East Windsor, CT
             </span>
             <span class="event-meta-item">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
                 <circle cx="8" cy="8" r="6"/>
                 <path d="M8 5v3l2 1.5"/>
               </svg>
-              12:00 PM
+              12:30 PM
             </span>
             <span class="event-meta-item">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -585,16 +585,15 @@
                 <path d="M2 7h12"/>
                 <path d="M5 1v3M11 1v3"/>
               </svg>
-              May 23, 2026
+              December 26, 2026
             </span>
           </div>
           <p class="event-description">
-            Bring a squad of 3 to 5 players for a fast-paced RHM 3v3 tournament. Teams must be 16+ and registration is confirmed only after the non-refundable $70 team payment is received.
+            One-day 7v7 tournament for teams of 9&ndash;12 players, ages 16+. Every team gets 3&ndash;4 guaranteed group games, then the top teams advance to a single-elimination bracket. $330 per team (+$5 processing) includes team uniforms. Registration closes November 29 &mdash; spots are first come, first served.
           </p>
         </div>
         <div class="event-ctas">
-          <a href="#registration-modal" class="btn-primary" data-register-event>Register Now →</a>
-          <a href="#" class="btn-outline">Learn More</a>
+          <a href="https://tally.so/r/M1EMo8" class="btn-primary" target="_blank" rel="noopener noreferrer">Register Now →</a>
         </div>
       </div>
     </div>
@@ -619,8 +618,8 @@
         <div class="future-card-label">Summer · TBA</div>
       </div>
       <div class="future-card">
-        <div class="future-card-sport">Soccer Cup</div>
-        <div class="future-card-label">Fall · TBA</div>
+        <div class="future-card-sport">Soccer Tournament</div>
+        <div class="future-card-label">Dec 26 · Open</div>
       </div>
     </div>
   </div>
@@ -723,18 +722,19 @@
     let activeRegistrationEvent = null;
 
     const fallbackRegistrationEvent = window.RHMEventsStore.normalizeEvent({
-      id: 'fallback-3v3',
-      title: 'RHM 3v3 Tournament',
-      sport: 'basketball',
+      id: 'fallback-soccer-2026',
+      title: '2026 RHM Soccer Tournament',
+      sport: 'soccer',
       status: 'open',
-      event_date: '2026-05-23',
-      event_time: '12:00',
-      location: '875 Dayhill Rd, Windsor, CT',
-      description: 'Bring a squad of 3 to 5 players for a fast-paced RHM 3v3 tournament. Teams must be 16+ and registration is confirmed only after the non-refundable $70 team payment is received.',
+      event_date: '2026-12-26',
+      event_time: '12:30',
+      location: '226 Main St, East Windsor, CT',
+      description: 'One-day 7v7 tournament for teams of 9–12 players, ages 16+. Every team gets 3–4 guaranteed group games, then the top teams advance to a single-elimination bracket. $330 per team (+$5 processing) includes team uniforms. Registration closes November 29 — spots are first come, first served.',
       registration: {
         enabled: true,
         paymentRequired: true,
         paymentLink: '',
+        registrationLink: 'https://tally.so/r/M1EMo8',
         questions: window.RHMEventsStore.defaultRegistrationQuestions
       }
     });
